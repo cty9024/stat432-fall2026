@@ -1,0 +1,800 @@
+---
+title: "Homework 01"
+pagetitle: "Homework 01"
+body-classes: "lecture-page practice-page"
+format:
+  html:
+    embed-resources: true
+    html-math-method: mathml
+    page-layout: full
+    toc: true
+    toc-location: body
+    toc-title: "On this page"
+    toc-depth: 2
+---
+
+## Question 1 (Least squares and matrix calculations)
+
+Set the random seed to 43201. Generate $n=100$ observations with $p=5$ predictors according to
+
+$$
+x_{ij}\overset{\mathrm{iid}}{\sim}N(0,1),
+\qquad
+\varepsilon_i\overset{\mathrm{iid}}{\sim}N(0,0.7^2),
+$$
+
+with all predictors and errors generated independently. Let
+
+$$
+\mathbf X
+=
+\begin{bmatrix}
+\mathbf 1 & \mathbf x_1 & \cdots & \mathbf x_5
+\end{bmatrix},
+\qquad
+\boldsymbol\beta
+=
+(3,1.4,-0.9,0.7,0,1.1)^{\mathsf T},
+$$
+
+and generate
+
+$$
+\mathbf y=\mathbf X\boldsymbol\beta+\boldsymbol\varepsilon.
+$$
+
+a. Generate the data and report the dimensions and rank of $\mathbf X$. Calculate the least-squares estimate $\widehat{\boldsymbol\beta}$ using a numerically stable least-squares routine, without explicitly calculating $(\mathbf X^{\mathsf T}\mathbf X)^{-1}$. Compare the estimates with the coefficients used to generate the data.
+
+#### Solution
+```{python}
+import numpy as np
+
+# Set random seed
+np.random.seed(43201)
+
+n = 100
+p = 5
+
+# Generate predictors
+X_pred = np.random.normal(0, 1, size=(n, p))
+
+# Add intercept column
+X = np.column_stack((np.ones(n), X_pred))
+
+# True regression coefficients
+beta = np.array([3, 1.4, -0.9, 0.7, 0, 1.1])
+
+# Generate random errors
+epsilon = np.random.normal(0, 0.7, size=n)
+
+# Generate response
+y = X @ beta + epsilon
+
+print("Dimensions of X:", X.shape)
+print("Rank of X:", np.linalg.matrix_rank(X))
+
+beta_hat, residual_sum_squares, rank, singular_values = np.linalg.lstsq(
+    X, y, rcond=None
+)
+
+print("Estimated beta:")
+print(beta_hat)
+
+print("True beta:")
+print(beta)
+```
+
+The design matrix has dimension $100 \times 6$ and rank 6, so it has full column rank. The estimated coefficients are reasonably close to the true coefficients, with differences due to the random error in the generated response.
+
+b. Calculate the fitted values, the residual vector $\mathbf r=\mathbf y-\mathbf X\widehat{\boldsymbol\beta}$, and the training root mean squared error
+
+$$
+\operatorname{RMSE}
+=
+\left(
+\frac{1}{n}\sum_{i=1}^{n}r_i^2
+\right)^{1/2}.
+$$
+
+#### Solution
+```{python}
+# Fitted values
+y_hat = X @ beta_hat
+
+# Residuals
+r = y - y_hat
+
+# Training RMSE
+rmse = np.sqrt(np.mean(r**2))
+
+print("RMSE:", rmse)
+```
+
+c. Report $\lVert\mathbf X^{\mathsf T}\mathbf r\rVert_\infty$. Explain why this value should be close to zero and what it tells us about the residual vector.
+
+#### Solution
+```{python}
+Xt_r = X.T @ r
+print("\nX^T r:")
+print(Xt_r)
+
+inf_norm = np.linalg.norm(Xt_r, ord=np.inf)
+
+print("\nInfinity norm of X^T r:")
+print(inf_norm)
+```
+
+Since $\hat{\beta}$ is the least-squares solution,
+
+$$
+X^\top(y - X\hat{\beta}) = 0.
+$$
+
+Thus, with $r = y - X\hat{\beta}$,
+
+$$
+X^\top r = 0.
+$$
+
+Therefore, the residual vector is orthogonal to the column space of $X$. The computed value of $\|X^\top r\|_\infty$ is extremely close to zero, with the small discrepancy caused by floating-point rounding error.
+
+## Question 2 (Gaussian likelihood for linear regression)
+
+Continue with the data from Question 1. Suppose
+
+$$
+\mathbf Y\mid\mathbf X
+\sim
+N_n\left(\mathbf X\boldsymbol\beta,\sigma^2\mathbf I_n\right).
+$$
+
+The log-likelihood, including the constant term, is
+
+$$
+\ell(\boldsymbol\beta,\sigma^2)
+=
+-\frac{n}{2}\log(2\pi\sigma^2)
+-\frac{1}{2\sigma^2}
+(\mathbf y-\mathbf X\boldsymbol\beta)^{\mathsf T}
+(\mathbf y-\mathbf X\boldsymbol\beta).
+$$
+
+a. For fixed $\sigma^2$, explain why maximizing $\ell(\boldsymbol\beta,\sigma^2)$ over $\boldsymbol\beta$ is equivalent to minimizing the residual sum of squares. What does this imply about the maximum-likelihood estimate of $\boldsymbol\beta$?
+
+#### Solution
+For fixed $\sigma^2$, the log-likelihood can be written as
+
+$$
+\ell(\beta,\sigma^2)
+=
+-\frac{n}{2}\log(2\pi\sigma^2)
+-
+\frac{1}{2\sigma^2}
+(y-X\beta)^\top(y-X\beta).
+$$
+
+The first term does not depend on $\beta$, and $-1/(2\sigma^2)$ is a fixed negative constant. Therefore, maximizing the log-likelihood over $\beta$ is equivalent to minimizing
+
+$$
+(y-X\beta)^\top(y-X\beta),
+$$
+
+which is the residual sum of squares.
+
+Hence,
+
+$$
+\hat{\beta}_{\text{MLE}}
+=
+\hat{\beta}_{\text{OLS}}.
+$$
+
+For the data from Question 1,
+
+$$
+\hat{\beta}
+=
+(2.8710,\ 1.3722,\ -0.9816,\ 0.5247,\ 0.0011,\ 1.0635)^\top.
+$$
+
+b. For fixed $\boldsymbol\beta$, differentiate the log-likelihood with respect to $\sigma^2$ and derive its maximum-likelihood estimate. Calculate this estimate at $\widehat{\boldsymbol\beta}$ and compare it with the unbiased estimate of $\sigma^2$. Explain why the two denominators differ.
+
+#### Solution
+For fixed $\beta$, let
+
+$$
+RSS=(y-X\beta)^\top(y-X\beta).
+$$
+
+Then the log-likelihood is
+
+$$
+\ell(\sigma^2)
+=
+-\frac{n}{2}\log(2\pi\sigma^2)
+-
+\frac{RSS}{2\sigma^2}.
+$$
+
+Differentiating with respect to $\sigma^2$ gives
+
+$$
+\frac{\partial \ell}{\partial \sigma^2}
+=
+-\frac{n}{2\sigma^2}
++
+\frac{RSS}{2(\sigma^2)^2}.
+$$
+
+Setting this equal to zero,
+
+$$
+-\frac{n}{2\sigma^2}
++
+\frac{RSS}{2(\sigma^2)^2}
+=0,
+$$
+
+which gives
+
+$$
+\hat{\sigma}^2_{\text{MLE}}
+=
+\frac{RSS}{n}.
+$$
+
+```{python}
+rss = r.T @ r
+
+sigma2_mle = rss / n
+sigma2_unbiased = rss / (n - X.shape[1])
+
+print(f"RSS: {rss:.4f}")
+print(f"MLE of sigma^2: {sigma2_mle:.4f}")
+print(f"Unbiased estimate of sigma^2: {sigma2_unbiased:.4f}")
+```
+
+The MLE is approximately
+
+$$
+\hat{\sigma}^2_{\text{MLE}} = 0.6466,
+$$
+
+while the unbiased estimate is
+
+$$
+\hat{\sigma}^2_{\text{unbiased}} = 0.6879.
+$$
+
+The MLE divides by $n$, while the unbiased estimator divides by $n-6$ because six regression coefficients, including the intercept, were estimated from the data. Therefore, the residual degrees of freedom are
+
+$$
+100 - 6 = 94.
+$$
+
+c. Let
+
+$$
+\mathbf e_{x_2}=(0,0,1,0,0,0)^{\mathsf T}.
+$$
+
+Using the variance estimate from part b, plot
+
+$$
+\ell\left(
+\widehat{\boldsymbol\beta}+t\mathbf e_{x_2},
+\widehat{\sigma}_{\mathrm{MLE}}^2
+\right)
+$$
+
+over a grid of $t$ values from $-1.25$ to $1.25$. State where the maximum occurs and explain why this agrees with the least-squares result.
+
+#### Solution
+```{python}
+import matplotlib.pyplot as plt
+
+# Direction that changes only the coefficient of x2
+e_x2 = np.array([0, 0, 1, 0, 0, 0])
+
+# Grid of t values
+t_grid = np.linspace(-1.25, 1.25, 251)
+
+# Use the MLE of sigma^2 from part (b)
+sigma2_mle = rss / n
+
+loglik = []
+
+for t in t_grid:
+    beta_t = beta_hat + t * e_x2
+    residual_t = y - X @ beta_t
+    rss_t = residual_t @ residual_t
+    
+    ll_t = -n / 2 * np.log(2 * np.pi * sigma2_mle) \
+           - rss_t / (2 * sigma2_mle)
+    
+    loglik.append(ll_t)
+
+plt.figure(figsize=(7, 4))
+plt.plot(t_grid, loglik)
+plt.axvline(0, linestyle="--")
+plt.xlabel("t")
+plt.ylabel("Log-likelihood")
+plt.title("Log-likelihood along the x2 coefficient direction")
+plt.show()
+```
+
+The log-likelihood is maximized at $t=0$. This is expected because $\hat{\beta}$ is the least-squares estimate and therefore minimizes the residual sum of squares. Moving away from $t=0$ changes the coefficient of $x_2$, increases the RSS, and decreases the log-likelihood.
+
+## Question 3 (Starting values in nonconvex optimization)
+
+Consider the function
+
+$$
+f(x)=\exp(1.5x)-3(x+6)^2-0.05x^3,
+$$
+
+with derivative
+
+$$
+f'(x)=1.5\exp(1.5x)-6(x+6)-0.15x^2.
+$$
+
+a. Plot $f(x)$ over the interval $[-40,7]$. Based on the plot, describe the important features of the objective function that may affect numerical optimization.
+
+#### Solution
+```{python}
+def f(x):
+    return np.exp(1.5 * x) - 3 * (x + 6)**2 - 0.05 * x**3
+
+x_grid = np.linspace(-40, 7, 1000)
+y_grid = f(x_grid)
+
+plt.figure(figsize=(8, 5))
+plt.plot(x_grid, y_grid)
+plt.xlabel("x")
+plt.ylabel("f(x)")
+plt.title("Objective function f(x)")
+plt.show()
+```
+
+The plot shows that $f(x)$ is nonconvex and has multiple stationary points. In particular, there are two local minima separated by a local maximum. The function also increases very rapidly for large positive $x$ because of the exponential term.
+
+These features are important for numerical optimization because a local optimization method such as BFGS may converge to different local minima depending on the starting value.
+
+b. Use BFGS to minimize $f(x)$ twice, starting at $x^{(0)}=-15$ and $x^{(0)}=0$. Supply $f'(x)$ to the optimizer. For each run, report the final value of $x$, the final objective value, $|f'(x)|$, and whether the optimizer reported convergence.
+
+#### Solution
+BFGS was run twice using starting values $x^{(0)}=-15$ and $x^{(0)}=0$, with the analytical derivative supplied to the optimizer.
+
+```{python}
+from scipy.optimize import minimize
+
+def f(x):
+    x = x[0]
+    return np.exp(1.5 * x) - 3 * (x + 6)**2 - 0.05 * x**3
+
+def f_prime(x):
+    x = x[0]
+    return np.array([
+        1.5 * np.exp(1.5 * x)
+        - 6 * (x + 6)
+        - 0.15 * x**2
+    ])
+
+starts = [-15, 0]
+
+for x0 in starts:
+    result = minimize(
+        f,
+        x0=np.array([x0], dtype=float),
+        jac=f_prime,
+        method="BFGS"
+    )
+
+    x_final = result.x[0]
+    f_final = result.fun
+    grad_final = abs(f_prime(result.x)[0])
+
+    print(f"Starting value: {x0}")
+    print(f"Final x: {x_final:.6f}")
+    print(f"Final f(x): {f_final:.6f}")
+    print(f"|f'(x)|: {grad_final:.6e}")
+    print(f"Converged: {result.success}")
+    print()
+```
+
+The two starting values lead to different local minima:
+
+$$
+x\approx -32.6491
+\qquad\text{and}\qquad
+x\approx 2.3500.
+$$
+
+In both cases, $|f'(x)|$ is close to zero and BFGS reports convergence.
+
+c. Explain why the two runs can converge to different answers. Which run gives the lower objective value? What additional evidence would be needed before claiming that this point is the global minimum?
+
+#### Solution
+The two runs can converge to different solutions because $f(x)$ is nonconvex and has multiple local minima. BFGS is a local optimization method, so its result can depend on the starting value.
+
+The run starting from
+
+$$
+x^{(0)}=-15
+$$
+
+produces the lower objective value:
+
+$$
+-390.3858 < -175.8626.
+$$
+
+Therefore, among the two runs, the solution near
+
+$$
+x=-32.6491
+$$
+
+is better.
+
+However, two local optimization runs are not sufficient to conclude that this point is the global minimum. Additional evidence would be needed to rule out other points with lower objective values. For example, we could find all stationary points in the interval $[-40,7]$, compare their objective values, and also check the boundary values. Alternatively, a global optimization method or a more extensive multi-start search could be used.
+
+## Question 4 (Nearly collinear predictors)
+
+Continue with $\mathbf X$ and $\mathbf y$ from Question 1. Set the random seed to 43202 and generate
+
+$$
+u_i\overset{\mathrm{iid}}{\sim}N(0,1),
+\qquad i=1,\ldots,n.
+$$
+
+Define
+
+$$
+\mathbf x_6=\mathbf x_1+10^{-4}\mathbf u,
+\qquad
+\mathbf X_+
+=
+\begin{bmatrix}
+\mathbf X & \mathbf x_6
+\end{bmatrix},
+$$
+
+and let
+
+$$
+\mathbf y^\star=\mathbf y+10^{-3}\mathbf u.
+$$
+
+Use a numerically stable least-squares routine throughout.
+
+a. Fit $\mathbf y$ using $\mathbf X$ and $\mathbf X_+$. For each design matrix, report the condition number and training RMSE. For the augmented fit, also report the coefficients of $\mathbf x_1$ and $\mathbf x_6$.
+
+#### Solution
+```{python}
+np.random.seed(43202)
+
+u = np.random.normal(0, 1, size=n)
+
+x6 = X[:, 1] + 1e-4 * u
+X_plus = np.column_stack((X, x6))
+
+y_star = y + 1e-3 * u
+
+# Fit y using X
+beta_X = np.linalg.lstsq(X, y, rcond=None)[0]
+yhat_X = X @ beta_X
+
+cond_X = np.linalg.cond(X)
+rmse_X = np.sqrt(np.mean((y - yhat_X)**2))
+
+# Fit y using X_plus
+beta_plus = np.linalg.lstsq(X_plus, y, rcond=None)[0]
+yhat_plus = X_plus @ beta_plus
+
+cond_Xplus = np.linalg.cond(X_plus)
+rmse_Xplus = np.sqrt(np.mean((y - yhat_plus)**2))
+
+print(f"Condition number of X: {cond_X:.4f}")
+print(f"Training RMSE using X: {rmse_X:.4f}")
+
+print(f"Condition number of X_plus: {cond_Xplus:.4f}")
+print(f"Training RMSE using X_plus: {rmse_Xplus:.4f}")
+
+print(f"Coefficient of x1: {beta_plus[1]:.4f}")
+print(f"Coefficient of x6: {beta_plus[6]:.4f}")
+```
+
+The original design matrix has a small condition number,
+
+$$
+\kappa(X)\approx 1.5163,
+$$
+
+while the augmented design matrix has a much larger condition number,
+
+$$
+\kappa(X_+)\approx 23353.
+$$
+
+The large condition number for $X_+$ occurs because $x_6$ is nearly identical to $x_1$.
+
+The training RMSE values are
+
+$$
+RMSE_X \approx 0.8041
+$$
+
+and
+
+$$
+RMSE_{X_+} \approx 0.8010.
+$$
+
+For the augmented model, the estimated coefficients are approximately
+
+$$
+\hat{\beta}_{x_1}=-782.7378,
+\qquad
+\hat{\beta}_{x_6}=784.1078.
+$$
+
+Although the individual coefficients are extremely large, their effects largely cancel because $x_1$ and $x_6$ are nearly collinear.
+
+b. Fit $\mathbf y^\star$ using $\mathbf X_+$. Report the changes in the coefficients of $\mathbf x_1$ and $\mathbf x_6$. Compare the two fitted-value vectors using their root mean squared difference and maximum absolute difference.
+
+#### Solution
+```{python}
+# Fit y_star using X_plus
+beta_star = np.linalg.lstsq(X_plus, y_star, rcond=None)[0]
+yhat_star = X_plus @ beta_star
+
+print(f"Original x1 coefficient: {beta_plus[1]:.4f}")
+print(f"New x1 coefficient:      {beta_star[1]:.4f}")
+print(f"Change in x1 coefficient: {beta_star[1] - beta_plus[1]:.4f}")
+
+print()
+
+print(f"Original x6 coefficient: {beta_plus[6]:.4f}")
+print(f"New x6 coefficient:      {beta_star[6]:.4f}")
+print(f"Change in x6 coefficient: {beta_star[6] - beta_plus[6]:.4f}")
+
+fit_diff = yhat_star - yhat_plus
+
+rms_diff = np.sqrt(np.mean(fit_diff**2))
+max_abs_diff = np.max(np.abs(fit_diff))
+
+print()
+print(f"RMS difference in fitted values: {rms_diff:.6f}")
+print(f"Maximum absolute difference: {max_abs_diff:.6f}")
+```
+
+After replacing $y$ by
+
+$$
+y^*=y+10^{-3}u,
+$$
+
+the coefficients of $x_1$ and $x_6$ change substantially:
+
+$$
+\Delta\hat{\beta}_{x_1}\approx -10,
+\qquad
+\Delta\hat{\beta}_{x_6}\approx 10.
+$$
+
+However, the two fitted-value vectors remain very close. Their root mean squared difference is approximately
+
+$$
+0.000935,
+$$
+
+and their maximum absolute difference is approximately
+
+$$
+0.002623.
+$$
+
+Thus, a very small perturbation in the response causes large changes in the individual coefficients, while the fitted values change very little.
+
+c. Use the identity
+
+$$
+\mathbf y^\star-\mathbf y
+=
+10(\mathbf x_6-\mathbf x_1)
+$$
+
+to explain why the fitted values change very little while the two coefficients change substantially. What does this example suggest about interpreting separate effects for nearly collinear predictors?
+
+#### Solution
+Since
+
+$$
+x_6=x_1+10^{-4}u,
+$$
+
+we have
+
+$$
+10(x_6-x_1)=10^{-3}u=y^*-y.
+$$
+
+From part (b), the coefficients change approximately by
+
+$$
+\Delta\hat{\beta}_{x_1}=-10,
+\qquad
+\Delta\hat{\beta}_{x_6}=10.
+$$
+
+Therefore, the corresponding change in the fitted values is
+
+$$
+-10x_1+10x_6
+=
+10(x_6-x_1),
+$$
+
+which is very small because $x_1$ and $x_6$ are nearly identical.
+
+Thus, large changes in the individual coefficients can produce only very small changes in the fitted values. This illustrates that when predictors are nearly collinear, their separate coefficient estimates can be highly unstable even when the model's predictions are stable.
+
+Therefore, individual effects of nearly collinear predictors should be interpreted with caution, because the data may not contain enough information to distinguish their separate contributions reliably.
+
+## Question 5 (Data preparation and summary statistics)
+
+The file `data/data-manipulation.csv` is a small constructed data table containing an observation identifier, a group label, two numeric predictors, and a response. Some response values are missing. For analyses involving the response, use only observations with a recorded response. Do not replace a missing response with zero or a group mean.
+
+a. Read the data and report its dimensions, column types, number of duplicated identifiers, and number of missing values in each column. Create an analysis table containing only observations with a recorded response, and define
+
+$$
+\texttt{feature\_sum}=\texttt{x1}+\texttt{x2}.
+$$
+
+#### Solution
+```{python}
+import pandas as pd
+
+df = pd.read_csv("data/data-manipulation.csv")
+
+print("Dimensions:")
+print(df.shape)
+
+print("\nColumn types:")
+print(df.dtypes)
+
+print("\nNumber of duplicated identifiers:")
+print(df["observation_id"].duplicated().sum())
+
+print("\nMissing values by column:")
+print(df.isna().sum())
+
+analysis = df.dropna(subset=["response"]).copy()
+
+analysis["feature_sum"] = analysis["x1"] + analysis["x2"]
+
+print("\nDimensions of analysis table:")
+print(analysis.shape)
+
+analysis.head()
+```
+
+For all analyses involving the response, I retain only observations with a recorded response. Missing response values are not imputed.
+
+The analysis table is therefore created by removing rows with missing `response`, and the new variable is defined as
+
+$$
+\text{feature\_sum}=x_1+x_2.
+$$
+
+b. For each group, report the number of observations, the mean response, and the mean of `feature_sum`. State clearly which observations these summaries describe.
+
+#### Solution
+```{python}
+group_summary = (
+    analysis
+    .groupby("group")
+    .agg(
+        n=("observation_id", "size"),
+        mean_response=("response", "mean"),
+        mean_feature_sum=("feature_sum", "mean")
+    )
+    .reset_index()
+)
+
+print(group_summary)
+```
+
+These summaries describe the 21 observations with non-missing response values.
+
+c. Sort the analysis table by response from largest to smallest and report the first three rows, including `observation_id`, `group`, `response`, and `feature_sum`. Add code checks verifying that the number of retained rows equals the number of nonmissing responses in the original data, that the analysis table has no missing response values, and that its identifiers are unique.
+
+#### Solution
+```{python}
+top3 = (
+    analysis
+    .sort_values("response", ascending=False)
+    [["observation_id", "group", "response", "feature_sum"]]
+    .head(3)
+)
+
+print(top3)
+
+assert len(analysis) == df["response"].notna().sum()
+assert analysis["response"].isna().sum() == 0
+assert analysis["observation_id"].is_unique
+
+print("All checks passed.")
+```
+
+## Question 6 (Can 39 million Fitbit records represent US adults?)
+
+[Patten et al. (2026)](https://doi.org/10.1038/s41591-026-04352-3) describe Fitbit data from 59,018 participants in the All of Us Research Program. The dataset spans 14 years and contains more than 39 million daily step records. Participants contributed data through one of two routes:
+
+- Bring Your Own Device (BYOD): participants shared data from a Fitbit they already owned.
+- Wearables Enhancing All of Us Research (WEAR): invited participants received a Fitbit at no cost.
+
+In the general activity cohort, the BYOD and WEAR groups contained 32,035 and 22,474 participants, respectively. The BYOD value is listed first in each comparison below:
+
+- 77.3% versus 55.1% reported being White;
+- 6.1% versus 15.2% reported annual household income between $\$10{,}000$ and $\$25{,}000$; and
+- median daily steps were 6,867 versus 5,797.
+
+Suppose the target is the mean of the participant-specific average daily step counts among US adults during the study period, with each adult given equal weight. A researcher writes:
+
+> "This dataset contains more than 39 million daily Fitbit records. Therefore, the average of all recorded step counts should provide an accurate estimate of mean daily activity among US adults."
+
+a. Are the 39 million daily records independent observations? What characteristics or behaviors could cause some participants to contribute more recorded days than others? Explain how averaging all recorded days would then weight participants unequally.
+
+#### Solution
+No. The 39 million daily records are not independent observations because many records come from the same participants. Repeated daily step counts from the same person are likely to be correlated due to shared characteristics such as lifestyle, health, work schedule, and habitual activity level.
+
+Participants may contribute different numbers of recorded days because of differences in device use, study duration, adherence, missing synchronization, or how consistently they wear the Fitbit.
+
+If all recorded days are averaged directly, participants with more recorded days receive greater weight. Specifically, the naive record-level average can be written as
+
+$$
+\frac{\sum_i T_i \bar{Y}_i}{\sum_i T_i},
+$$
+
+where $T_i$ is the number of recorded days for participant $i$. Thus, participants with larger $T_i$ contribute more to the estimate, which does not match the target in which each adult should receive equal weight.
+
+b. BYOD participants reported a median of 6,867 daily steps, compared with 5,797 among WEAR participants. Does this comparison show that already owning a Fitbit causes people to walk more? Explain your answer and give at least one plausible alternative explanation based on how participants entered the two groups.
+
+#### Solution
+No. The difference in median daily steps does not show that already owning a Fitbit causes people to walk more, because participants were not randomly assigned to the BYOD and WEAR groups.
+
+BYOD participants already owned a Fitbit before entering the study, so they may differ systematically from WEAR participants. For example, people who are more physically active or more interested in monitoring their health may be more likely to purchase a Fitbit on their own.
+
+The two groups also differ in demographic characteristics such as race and household income, suggesting additional potential confounding. Therefore, the observed difference in step counts may reflect pre-existing differences between the groups rather than a causal effect of Fitbit ownership.
+
+c. A very large dataset can still produce a biased estimate of a population quantity when the people and observations entering the dataset are selected. Using this study, explain how selection of both participants and recorded days could make the observed data differ from the US adult population. Why might the naive average of all recorded daily step counts fail to estimate the stated target? You do not need to determine the direction of the bias.
+
+#### Solution
+A very large number of records does not guarantee an unbiased estimate of a population quantity. Large sample size mainly reduces sampling variability, but it does not eliminate bias caused by nonrandom selection.
+
+First, the participants in the study may not be representative of all US adults. People who participate in the All of Us Research Program or use Fitbit devices may differ from the general population in characteristics such as age, income, health status, physical activity, technology use, or health awareness.
+
+Second, the recorded days may also be selected. Participants may wear or synchronize their devices more consistently on some days than others, and the number of recorded days differs across participants. If the probability that a day is recorded is related to activity level or participant characteristics, the observed days may not represent all days.
+
+The target quantity gives each adult equal weight and is conceptually
+
+$$
+\frac{1}{N}\sum_{i=1}^N \bar{Y}_i.
+$$
+
+In contrast, the naive average over all recorded daily observations is
+
+$$
+\frac{\sum_i T_i \bar{Y}_i}{\sum_i T_i},
+$$
+
+which gives greater weight to participants with more recorded days.
+
+Therefore, selection of both participants and recorded days can make the observed data differ systematically from the US adult population, and the naive average of all recorded step counts may fail to estimate the stated target even with 39 million records.
+
+### Source
+
+Patten, T., Preble, E. A., Master, H., et al. (2026). [The All of Us Research Program's wearables dataset](https://doi.org/10.1038/s41591-026-04352-3). *Nature Medicine*, 32, 2302-2310.

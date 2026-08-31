@@ -1,0 +1,26 @@
+# Ignore everything at the repository root.
+/*
+
+# Keep the submission structure.
+!/.gitignore
+!/discussion/
+!/homework/
+!/project/
+
+# Keep only weekly discussion questions.
+/discussion/*
+!/discussion/week-[0-9][0-9]-question.md
+
+# Keep only final weekly homework reports.
+/homework/*
+!/homework/week-[0-9][0-9]/
+/homework/week-[0-9][0-9]/*
+!/homework/week-[0-9][0-9]/homework-[0-9][0-9].pdf
+!/homework/week-[0-9][0-9]/homework-[0-9][0-9].html
+
+# Keep only final-project files.
+/project/*
+!/project/final-report.pdf
+!/project/final-report.html
+!/project/appendix.pdf
+!/project/appendix.html
