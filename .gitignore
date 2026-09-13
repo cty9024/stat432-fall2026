@@ -6,6 +6,11 @@
 !/discussion/
 !/homework/
 !/project/
+!/explain-to-me/
+
+# Keep the Homework 3 skill source.
+/explain-to-me/*
+!/explain-to-me/SKILL.md
 
 # Keep only weekly discussion questions.
 /discussion/*

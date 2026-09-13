@@ -2306,7 +2306,7 @@ X_{i2}=L_i+0.04U_{i2}.
 </ol>
 <section id="solution" class="level3">
 <h3 class="anchored" data-anchor-id="solution">Solution</h3>
-<div id="e25163ca" class="cell" data-execution_count="1">
+<div id="572c1d61" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show the workflow</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -2393,7 +2393,7 @@ d_{\min}=0.406.
 </section>
 <section id="solution-1" class="level3">
 <h3 class="anchored" data-anchor-id="solution-1">Solution</h3>
-<div id="623cc4a4" class="cell" data-execution_count="2">
+<div id="52d44168" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show the workflow</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>beta_true <span class="op">=</span> np.array([<span class="fl">1.5</span>, <span class="fl">1.5</span>, <span class="dv">1</span>, <span class="dv">0</span>])</span>
@@ -2884,7 +2884,7 @@ n\lambda=1.
 \right\}.
 </annotation></semantics></math></p>
 <p>For every fit, center and standardize each predictor using only the observations available to that fit, with the variance divided by the number of fitting observations. Center the response and leave the intercept unpenalized.</p>
-<div id="1fa2300b" class="cell" data-execution_count="3">
+<div id="fd0e4403" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show the workflow</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -3014,7 +3014,7 @@ Index([&#39;row_id&#39;, &#39;split&#39;, &#39;cv_fold&#39;], dtype=&#39;str&#39
 </annotation></semantics></math></p>
 <section id="solution-9" class="level3">
 <h3 class="anchored" data-anchor-id="solution-9">Solution</h3>
-<div id="0774dfa8" class="cell" data-execution_count="4">
+<div id="2fb324e5" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show the workflow</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>train <span class="op">=</span> data[data[<span class="st">&quot;split&quot;</span>] <span class="op">==</span> <span class="st">&quot;train&quot;</span>].copy()</span>
@@ -3161,8 +3161,8 @@ lambda_1se = 1.584893192461114</code></pre>
 </div>
 <p>Ten-fold cross-validation was performed using the supplied folds. Within each fold, predictor means and scales were estimated using only the other nine training folds and were then applied to the validation fold.</p>
 <p>The value minimizing the mean validation MSE was</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>λ</mi><mi mathvariant="normal">min</mi></msub><mo>=</mo><mtext mathvariant="normal">YOUR VALUE</mtext><mi>.</mi></mrow><annotation encoding="application/x-tex">
-\lambda_{\min} = \text{YOUR VALUE}.
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>λ</mi><mi mathvariant="normal">min</mi></msub><mo>≈</mo><mn>0.01995</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\lambda_{\min} \approx 0.01995.
 </annotation></semantics></math></p>
 <p>Using the one-standard-error rule,</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi mathvariant="normal">MSE</mi><mo accent="true">¯</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>λ</mi><mo stretchy="false" form="postfix">)</mo><mo>≤</mo><mover><mi mathvariant="normal">MSE</mi><mo accent="true">¯</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>λ</mi><mi mathvariant="normal">min</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mrow><mi mathvariant="normal">SE</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>λ</mi><mi mathvariant="normal">min</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mrow><annotation encoding="application/x-tex">
@@ -3173,8 +3173,8 @@ lambda_1se = 1.584893192461114</code></pre>
 \operatorname{SE}(\lambda_{\min}),
 </annotation></semantics></math></p>
 <p>the largest eligible penalty was</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>λ</mi><mrow><mn mathvariant="normal">1</mn><mi mathvariant="normal">s</mi><mi mathvariant="normal">e</mi></mrow></msub><mo>=</mo><mtext mathvariant="normal">YOUR VALUE</mtext><mi>.</mi></mrow><annotation encoding="application/x-tex">
-\lambda_{\mathrm{1se}} = \text{YOUR VALUE}.
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>λ</mi><mrow><mn mathvariant="normal">1</mn><mi mathvariant="normal">s</mi><mi mathvariant="normal">e</mi></mrow></msub><mo>≈</mo><mn>1.58489</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\lambda_{\mathrm{1se}} \approx 1.58489.
 </annotation></semantics></math></p>
 <ol start="2" type="a">
 <li>Use all <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>=</mo><mn>332</mn></mrow><annotation encoding="application/x-tex">n=332</annotation></semantics></math> training observations to calculate the <a href="https://teazrq.github.io/stat432rpy/topics/ridge-regression/optimization-and-cross-validation.html#loocv-and-gcv">lecture’s GCV criterion</a> for each <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo>∈</mo><mi mathvariant="normal">Λ</mi></mrow><annotation encoding="application/x-tex">\lambda\in\Lambda</annotation></semantics></math>:</li>
@@ -3194,7 +3194,7 @@ lambda_1se = 1.584893192461114</code></pre>
 </section>
 <section id="solution-10" class="level3">
 <h3 class="anchored" data-anchor-id="solution-10">Solution</h3>
-<div id="eeaba5c4" class="cell" data-execution_count="5">
+<div id="01219f59" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show the workflow</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>X_train_raw <span class="op">=</span> train[predictors].to_numpy()</span>
@@ -3321,7 +3321,7 @@ minimum GCV = 83.50191402025362</code></pre>
 </section>
 <section id="solution-11" class="level3">
 <h3 class="anchored" data-anchor-id="solution-11">Solution</h3>
-<div id="631644a1" class="cell" data-execution_count="6">
+<div id="b18c3a48" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show the workflow</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>X_test_raw <span class="op">=</span> test[predictors].to_numpy()</span>
