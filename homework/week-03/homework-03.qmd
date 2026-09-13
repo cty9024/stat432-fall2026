@@ -1,0 +1,1339 @@
+---
+title: "Homework 03"
+pagetitle: "Homework 03"
+body-classes: "lecture-page practice-page"
+format:
+  html:
+    embed-resources: true
+    html-math-method: mathml
+    page-layout: full
+    toc: true
+    toc-location: body
+    toc-title: "On this page"
+    toc-depth: 2
+    code-fold: true
+    code-summary: "Show the workflow"
+---
+
+## Question 1: Build an `explain-to-me` skill
+
+Create a small skill named `explain-to-me` that helps you understand a homework question.
+
+1. Design your `SKILL.md` file so that, when you explicitly ask your agent to use the skill to read a homework question, the agent communicates with you and explains what the question is asking.
+
+2. Keep the skill file short. It should contain a few useful rules, instructions, and a clear statement of your intent. For example, you may ask the agent to explain the goal of the question, clarify what work is required, and point you to an appropriate section of the Week 3 lectures: [Ridge Regression: Stability Through Shrinkage](https://teazrq.github.io/stat432rpy/topics/ridge-regression/ridge-regression.html) or [From a Penalized Objective to a Fitted Ridge Model](https://teazrq.github.io/stat432rpy/topics/ridge-regression/optimization-and-cross-validation.html). The skill should help you understand the question without completing the solution for you.
+
+3. Create the skill yourself or with the help of AI. Save it as `explain-to-me/SKILL.md`. Then ask your AI agent to install the skill using its normal skill-installation method. Test it by explicitly asking the agent to use `explain-to-me` to read and explain Question 2.
+
+4. If the skill does not work well, or if it begins to disturb your usual workflow, ask your agent to remove the installed skill. You may revise and reinstall it if you wish.
+
+5. In all cases, append the complete contents of your developed `explain-to-me/SKILL.md` file at the end of your Homework 3 submission under the heading **`explain-to-me` skill**.
+
+## Question 2: Ridge regression with nearly collinear predictors
+
+Let $n=100$. Generate mutually independent standard normal random variables
+
+$$
+L_i, U_{i1}, U_{i2}, X_{i3}, X_{i4},
+\qquad i=1,\ldots,n,
+$$
+
+and define
+
+$$
+X_{i1}=L_i+0.04U_{i1},
+\qquad
+X_{i2}=L_i+0.04U_{i2}.
+$$
+
+Center and standardize each column of $\mathbf X$ to have mean zero and average squared value one, following the [lecture's scaling convention](https://teazrq.github.io/stat432rpy/topics/ridge-regression/ridge-regression.html#put-every-covariate-on-a-common-scale).
+
+Continue to use $\mathbf X\in\mathbb R^{n\times p}$ for the standardized matrix and keep it fixed throughout the question, where $p=4$ is the number of predictors. The unpenalized intercept gives $p+1=5$ total fitted coefficients. Let
+
+$$
+\boldsymbol\beta
+=
+(1.5,1.5,1,0)^{\mathsf T},
+\qquad
+\boldsymbol\mu
+=
+\mathbf X\boldsymbol\beta.
+$$
+
+Generate a training response and an independent test response at the same predictor values:
+
+$$
+\begin{aligned}
+\mathbf y
+&=
+\boldsymbol\mu+\boldsymbol\epsilon,\\
+\mathbf y^*
+&=
+\boldsymbol\mu+\boldsymbol\epsilon^*,
+\end{aligned}
+$$
+
+where
+
+$$
+\boldsymbol\epsilon,
+\boldsymbol\epsilon^*
+\overset{\mathrm{ind}}{\sim}
+\mathcal N_n(\mathbf0,\mathbf I_n).
+$$
+
+Center the training response as $\widetilde{\mathbf y}=\mathbf y-\bar y\mathbf1_n$. For each $\lambda\in\{0,0.02,0.2\}$, fit the slopes using the lecture's ridge formula:
+
+$$
+\widehat{\boldsymbol\beta}_\lambda
+=
+\left(\mathbf X^{\mathsf T}\mathbf X+n\lambda\mathbf I_p\right)^{-1}
+\mathbf X^{\mathsf T}\widetilde{\mathbf y}.
+$$
+
+The unpenalized intercept is $\widehat\beta_0=\bar y$; add this training mean back when predicting either response. The case $\lambda=0$ is ordinary least squares. Use seed `43231` before generating the design and responses. R and Python use different random-number generators, so their exact numerical results need not agree.
+
+a. Generate $\mathbf X$ once. Report the correlation between its first two columns and its largest and smallest singular values. Use these quantities to explain why the estimator contrast $\widehat\beta_1-\widehat\beta_2$ should be much more variable than $\widehat\beta_1+\widehat\beta_2$.
+
+### Solution
+```{python}
+import numpy as np
+import pandas as pd
+
+rng = np.random.default_rng(43231)
+
+n = 100
+
+L = rng.normal(size=n)
+U1 = rng.normal(size=n)
+U2 = rng.normal(size=n)
+X3 = rng.normal(size=n)
+X4 = rng.normal(size=n)
+
+X1 = L + 0.04 * U1
+X2 = L + 0.04 * U2
+
+X = np.column_stack([X1, X2, X3, X4])
+
+# Center and standardize using average squared value = 1
+X = X - X.mean(axis=0)
+scales = np.sqrt(np.mean(X**2, axis=0))
+X = X / scales
+
+corr12 = np.corrcoef(X[:, 0], X[:, 1])[0, 1]
+singular_values = np.linalg.svd(X, compute_uv=False)
+
+print("Correlation:", corr12)
+print("Largest singular value:", singular_values.max())
+print("Smallest singular value:", singular_values.min())
+```
+
+The first two standardized predictors are almost perfectly correlated. Using seed
+`43231`, I obtained
+
+$$
+\operatorname{Corr}(X_1,X_2) \approx 0.9983.
+$$
+
+The largest and smallest singular values of \(X\) were approximately
+
+$$
+d_{\max}=14.173,
+\qquad
+d_{\min}=0.406.
+$$
+
+The very small singular value indicates that the design contains a nearly
+unidentified direction. Since \(X_1\) and \(X_2\) are nearly equal, this direction is
+approximately the contrast \(X_1-X_2\).
+
+The contribution of the first two predictors can be written as
+
+$$
+\beta_1X_1+\beta_2X_2
+=
+\frac{\beta_1+\beta_2}{2}(X_1+X_2)
++
+\frac{\beta_1-\beta_2}{2}(X_1-X_2).
+$$
+
+Because \(X_1-X_2\) has very little variation, the data contain little information
+about \(\beta_1-\beta_2\). Thus
+\(\widehat{\beta}_1-\widehat{\beta}_2\) should have much larger variance than
+\(\widehat{\beta}_1+\widehat{\beta}_2\).
+
+b. Independently repeat the generation of $\mathbf y$ and $\mathbf y^*$, followed by all three fits, 200 times while keeping $\mathbf X$ fixed. Draw the training and test noise inside each repetition, then reuse that realized pair for all three values of $\lambda$. For each value of $\lambda$, report the empirical mean and standard deviation of
+
+$$
+\widehat\beta_1,
+\quad
+\widehat\beta_2,
+\quad
+\widehat\beta_1+\widehat\beta_2,
+\quad
+\widehat\beta_1-\widehat\beta_2.
+$$
+
+Also report the average training MSE and the average test MSE calculated from the independent test response, where
+
+$$
+\operatorname{MSE}_{\mathrm{test}}
+=
+\frac{1}{n}
+\left\lVert
+\mathbf y^*
+-
+\widehat\beta_0\mathbf1_n
+-
+\mathbf X\widehat{\boldsymbol\beta}
+\right\rVert_2^2.
+$$
+
+### Solution
+```{python}
+beta_true = np.array([1.5, 1.5, 1, 0])
+mu = X @ beta_true
+
+lambdas = [0, 0.02, 0.2]
+
+results = []
+
+for rep in range(200):
+
+    eps = rng.normal(size=n)
+    eps_star = rng.normal(size=n)
+
+    y = mu + eps
+    y_star = mu + eps_star
+
+    y_bar = y.mean()
+    y_tilde = y - y_bar
+
+    for lam in lambdas:
+
+        beta_hat = np.linalg.solve(
+            X.T @ X + n * lam * np.eye(4),
+            X.T @ y_tilde
+        )
+
+        y_hat = y_bar + X @ beta_hat
+
+        train_mse = np.mean((y - y_hat)**2)
+        test_mse = np.mean((y_star - y_hat)**2)
+
+        results.append({
+            "lambda": lam,
+            "beta1": beta_hat[0],
+            "beta2": beta_hat[1],
+            "sum": beta_hat[0] + beta_hat[1],
+            "difference": beta_hat[0] - beta_hat[1],
+            "train_mse": train_mse,
+            "test_mse": test_mse
+        })
+
+results = pd.DataFrame(results)
+
+summary = results.groupby("lambda").agg({
+    "beta1": ["mean", "std"],
+    "beta2": ["mean", "std"],
+    "sum": ["mean", "std"],
+    "difference": ["mean", "std"],
+    "train_mse": "mean",
+    "test_mse": "mean"
+})
+
+print(summary)
+```
+
+The results show that OLS, with $\lambda=0$, produces highly variable individual
+coefficient estimates because $X_1$ and $X_2$ are nearly collinear. In particular,
+the standard deviation of
+
+$$
+\widehat{\beta}_1-\widehat{\beta}_2
+$$
+
+is much larger than that of
+
+$$
+\widehat{\beta}_1+\widehat{\beta}_2.
+$$
+
+With $\lambda=0.02$, ridge greatly reduces the variability of the individual
+coefficients and their difference, while
+
+$$
+\widehat{\beta}_1+\widehat{\beta}_2
+$$
+
+changes only slightly. The average test MSE also decreases slightly from about
+$1.038$ for OLS to $1.029$.
+
+With the stronger penalty $\lambda=0.2$, the coefficient variability is reduced
+even further, but the coefficients are more strongly shrunk toward zero. The
+average test MSE increases to about $1.125$, suggesting that the additional
+shrinkage introduces too much bias.
+
+c. Interpret the coefficient estimates and test MSE using bias and variance. Explain why ridge can substantially stabilize the individual coefficients without producing an equally large change in the fitted values.
+
+### Solution
+The simulation illustrates the bias-variance tradeoff of ridge regression.
+
+For OLS, with $\lambda=0$, the individual estimates
+$\widehat{\beta}_1$ and $\widehat{\beta}_2$ have very large variance because
+$X_1$ and $X_2$ are nearly collinear. In the simulation, their standard deviations
+are both about $1.8$, while the standard deviation of
+$\widehat{\beta}_1+\widehat{\beta}_2$ is only about $0.105$. This shows that the
+combined effect of the two predictors is much more stable than the individual
+coefficients.
+
+With $\lambda=0.02$, ridge introduces some bias by shrinking the coefficients toward
+zero, but it greatly reduces their variance. The standard deviations of
+$\widehat{\beta}_1$ and $\widehat{\beta}_2$ fall to about $0.145$, while the mean
+of $\widehat{\beta}_1+\widehat{\beta}_2$ remains close to the true value $3$.
+The average test MSE also decreases slightly, from about $1.038$ for OLS to
+$1.029$.
+
+With the stronger penalty $\lambda=0.2$, the coefficient variance becomes even
+smaller, but the shrinkage bias becomes more noticeable. The mean of
+$\widehat{\beta}_1+\widehat{\beta}_2$ decreases to about $2.715$, and the average
+test MSE increases to about $1.125$.
+
+Ridge can substantially stabilize the individual coefficients without producing an
+equally large change in the fitted values because $X_1$ and $X_2$ are nearly
+identical. The first two predictors contribute
+
+$$
+\beta_1 X_1 + \beta_2 X_2
+=
+\frac{\beta_1+\beta_2}{2}(X_1+X_2)
++
+\frac{\beta_1-\beta_2}{2}(X_1-X_2).
+$$
+
+Since $X_1-X_2$ has very little variation, large changes in
+$\widehat{\beta}_1-\widehat{\beta}_2$ have only a small effect on the fitted values.
+Therefore, ridge can strongly shrink this unstable coefficient direction while
+changing $X\widehat{\boldsymbol{\beta}}$ much less.
+
+## Question 3: What does ridge regression shrink?
+
+Let $\mathbf X\in\mathbb R^{n\times p}$ be a centered predictor matrix, and let $\widetilde{\mathbf y}\in\mathbb R^n$ be the centered response. Use the supplied predictor scales for this algebraic question; the columns need not have unit variance. Here $p$ counts predictors, $\boldsymbol\beta\in\mathbb R^p$ contains their slopes, and $p+1$ counts all fitted coefficients, including the separately fitted, unpenalized intercept. Ridge regression minimizes
+
+$$
+L_\lambda(\boldsymbol\beta)
+=
+\frac{1}{2n}
+\left\lVert
+\widetilde{\mathbf y}-\mathbf X\boldsymbol\beta
+\right\rVert_2^2
++
+\frac{\lambda}{2}
+\lVert\boldsymbol\beta\rVert_2^2.
+$$
+
+a. Derive the ridge normal equation
+
+$$
+\left(
+\mathbf X^{\mathsf T}\mathbf X
++n\lambda\mathbf I_p
+\right)
+\widehat{\boldsymbol\beta}_\lambda
+=
+\mathbf X^{\mathsf T}\widetilde{\mathbf y}.
+$$
+
+Explain why it has a unique solution whenever $\lambda>0$, even if $\mathbf X$ is rank deficient or $p>n$.
+
+
+### Solution
+
+The ridge objective is
+
+$$
+L_\lambda(\boldsymbol{\beta})
+=
+\frac{1}{2n}
+\left\|
+\widetilde{\mathbf y}
+-
+\mathbf X\boldsymbol{\beta}
+\right\|_2^2
++
+\frac{\lambda}{2}
+\|\boldsymbol{\beta}\|_2^2.
+$$
+
+Its gradient is
+
+$$
+\nabla L_\lambda(\boldsymbol{\beta})
+=
+-\frac{1}{n}
+\mathbf X^{\mathsf T}
+\left(
+\widetilde{\mathbf y}
+-
+\mathbf X\boldsymbol{\beta}
+\right)
++
+\lambda\boldsymbol{\beta}.
+$$
+
+Setting the gradient equal to zero gives
+
+$$
+-\mathbf X^{\mathsf T}\widetilde{\mathbf y}
++
+\mathbf X^{\mathsf T}\mathbf X
+\widehat{\boldsymbol{\beta}}_\lambda
++
+n\lambda\widehat{\boldsymbol{\beta}}_\lambda
+=
+0,
+$$
+
+so
+
+$$
+\boxed{
+\left(
+\mathbf X^{\mathsf T}\mathbf X
++
+n\lambda\mathbf I_p
+\right)
+\widehat{\boldsymbol{\beta}}_\lambda
+=
+\mathbf X^{\mathsf T}\widetilde{\mathbf y}
+}.
+$$
+
+For any nonzero vector $\mathbf v$,
+
+$$
+\mathbf v^{\mathsf T}
+\left(
+\mathbf X^{\mathsf T}\mathbf X
++
+n\lambda\mathbf I_p
+\right)
+\mathbf v
+=
+\|\mathbf X\mathbf v\|_2^2
++
+n\lambda\|\mathbf v\|_2^2.
+$$
+
+When $\lambda>0$, this quantity is strictly positive for every
+$\mathbf v\neq0$. Therefore,
+$\mathbf X^{\mathsf T}\mathbf X+n\lambda\mathbf I_p$ is positive definite
+and hence invertible. Thus the ridge estimator has a unique solution even
+when $\mathbf X$ is rank deficient or $p>n$.
+
+
+b. Let
+
+$$
+\mathbf X
+=
+\mathbf U_r\mathbf D_r\mathbf V_r^{\mathsf T}
+$$
+
+be a compact singular value decomposition, where $r=\operatorname{rank}(\mathbf X)$, $\mathbf U_r\in\mathbb R^{n\times r}$, $\mathbf D_r\in\mathbb R^{r\times r}$, and $\mathbf V_r\in\mathbb R^{p\times r}$. Show that ridge multiplies the fitted response component in the $j$th left singular-vector direction, for $j=1,\ldots,r$, by
+
+$$
+\rho_j(\lambda)
+=
+\frac{d_j^2}{d_j^2+n\lambda}.
+$$
+
+Suppose $n=100$, $\lambda=0.01$, and the nonzero singular values are
+
+$$
+d_1=10,
+\qquad
+d_2=2,
+\qquad
+d_3=0.2.
+$$
+
+Calculate the three shrinkage factors and the total effective degrees of freedom, including the unpenalized intercept:
+
+$$
+\operatorname{df}_{\mathrm{eff}}(\lambda)
+=
+1+\sum_{j=1}^3\rho_j(\lambda).
+$$
+
+
+### Solution
+
+Using the compact SVD
+
+$$
+\mathbf X
+=
+\mathbf U_r\mathbf D_r\mathbf V_r^{\mathsf T},
+$$
+
+we have
+
+$$
+\mathbf X^{\mathsf T}\mathbf X
+=
+\mathbf V_r\mathbf D_r^2\mathbf V_r^{\mathsf T}.
+$$
+
+The ridge fitted values can therefore be written as
+
+$$
+\widehat{\mathbf y}_\lambda
+=
+\mathbf X\widehat{\boldsymbol{\beta}}_\lambda
+=
+\mathbf U_r
+\mathbf D_r
+\left(
+\mathbf D_r^2+n\lambda\mathbf I_r
+\right)^{-1}
+\mathbf D_r
+\mathbf U_r^{\mathsf T}
+\widetilde{\mathbf y}.
+$$
+
+Thus,
+
+$$
+\widehat{\mathbf y}_\lambda
+=
+\sum_{j=1}^r
+\frac{d_j^2}{d_j^2+n\lambda}
+\mathbf u_j\mathbf u_j^{\mathsf T}
+\widetilde{\mathbf y}.
+$$
+
+Therefore, the fitted response component in the $j$th left singular-vector
+direction is multiplied by
+
+$$
+\rho_j(\lambda)
+=
+\frac{d_j^2}{d_j^2+n\lambda}.
+$$
+
+Since $n=100$ and $\lambda=0.01$,
+
+$$
+n\lambda=1.
+$$
+
+Therefore,
+
+$$
+\rho_1
+=
+\frac{10^2}{10^2+1}
+=
+\frac{100}{101}
+\approx0.9901,
+$$
+
+$$
+\rho_2
+=
+\frac{2^2}{2^2+1}
+=
+\frac{4}{5}
+=
+0.8,
+$$
+
+and
+
+$$
+\rho_3
+=
+\frac{0.2^2}{0.2^2+1}
+=
+\frac{0.04}{1.04}
+\approx0.0385.
+$$
+
+Including the unpenalized intercept, the effective degrees of freedom are
+
+$$
+\operatorname{df}_{\mathrm{eff}}(\lambda)
+=
+1+\rho_1+\rho_2+\rho_3
+$$
+
+$$
+=
+1+0.9901+0.8+0.0385
+\approx
+\boxed{2.8286}.
+$$
+
+
+c. Which direction receives the strongest shrinkage? Explain why shrinking this direction can reduce prediction variance. Under what circumstance could the same shrinkage produce substantial prediction bias?
+
+
+### Solution
+
+The direction corresponding to the smallest singular value,
+$d_3=0.2$, receives the strongest shrinkage because its shrinkage factor is
+
+$$
+\rho_3\approx0.0385,
+$$
+
+which is much smaller than the other two factors.
+
+A small singular value represents a direction in the predictor space that is
+weakly determined by the data. Estimates in such directions can have high
+variance because random noise can produce large changes in the estimated
+coefficients. By strongly shrinking this direction, ridge reduces the effect of
+this noise and therefore reduces prediction variance.
+
+However, the same shrinkage can produce substantial prediction bias if the true
+mean response has an important component in this small-singular-value direction.
+In that case, ridge would shrink not only noise but also genuine signal, causing
+the fitted response to systematically underestimate that component.
+
+
+## Question 4: Ridge regression and optimization
+
+Let $\mathbf X\in\mathbb R^{n\times p}$ be a centered predictor matrix with $p=2$. Its columns need not have unit variance in this question. The intercept is fitted separately and is not penalized. Suppose the two eigenvalues of
+
+$$
+\mathbf A_0
+=
+\frac{1}{n}\mathbf X^{\mathsf T}\mathbf X
+$$
+
+are $9$ and $0.01$. Ridge regression with $\lambda=0.09$ has curvature matrix
+
+$$
+\mathbf A_\lambda
+=
+\frac{1}{n}\mathbf X^{\mathsf T}\mathbf X
++
+\lambda\mathbf I_p.
+$$
+
+a. Calculate the condition numbers of $\mathbf A_0$ and $\mathbf A_\lambda$. Explain what the change says about the geometry of the ridge objective.
+
+
+### Solution
+
+The condition number of a positive definite matrix is the ratio of its
+largest eigenvalue to its smallest eigenvalue. Therefore,
+
+$$
+\kappa(\mathbf A_0)
+=
+\frac{9}{0.01}
+=
+900.
+$$
+
+Adding the ridge penalty shifts each eigenvalue by $\lambda=0.09$, so the
+eigenvalues of $\mathbf A_\lambda$ are
+
+$$
+9+0.09=9.09
+$$
+
+and
+
+$$
+0.01+0.09=0.10.
+$$
+
+Hence,
+
+$$
+\kappa(\mathbf A_\lambda)
+=
+\frac{9.09}{0.10}
+=
+90.9.
+$$
+
+Thus ridge reduces the condition number from $900$ to $90.9$. Geometrically,
+the objective becomes less elongated and more nearly isotropic. The curvature
+in the previously flat direction increases, which makes the optimization
+problem better conditioned.
+
+
+b. Gradient descent uses
+
+$$
+\boldsymbol\beta^{(k+1)}
+=
+\boldsymbol\beta^{(k)}
+-
+\eta\nabla L_\lambda\!\left(\boldsymbol\beta^{(k)}\right).
+$$
+
+Let $\widehat{\boldsymbol\beta}_\lambda$ be the ridge minimizer and define the optimization error
+
+$$
+\mathbf e^{(k)}
+=
+\boldsymbol\beta^{(k)}
+-
+\widehat{\boldsymbol\beta}_\lambda.
+$$
+
+Show that the component of $\mathbf e^{(k)}$ in an eigendirection with unpenalized eigenvalue $a$ is multiplied at each step by
+
+$$
+1-\eta(a+\lambda).
+$$
+
+Let $M=9.09$, the largest eigenvalue of $\mathbf A_\lambda$. Find the interval of step sizes that contracts every eigendirection. Then compare these two choices:
+
+- For $\eta=1/M$, calculate the two contraction factors and explain which direction converges faster.
+- For $\eta=2.1/M$, determine whether the method converges. Assume the initial error has a nonzero component in the eigendirection corresponding to $M$.
+
+
+### Solution
+
+Because the ridge objective is quadratic, its gradient can be written as
+
+$$
+\nabla L_\lambda(\boldsymbol{\beta})
+=
+\mathbf A_\lambda\boldsymbol{\beta}-\mathbf b.
+$$
+
+At the ridge minimizer,
+
+$$
+\nabla L_\lambda(\widehat{\boldsymbol{\beta}}_\lambda)=0.
+$$
+
+Subtracting the minimizer from the gradient descent update gives
+
+$$
+\mathbf e^{(k+1)}
+=
+\left(
+\mathbf I-\eta\mathbf A_\lambda
+\right)
+\mathbf e^{(k)}.
+$$
+
+If an eigendirection has unpenalized eigenvalue $a$, then its ridge
+eigenvalue is $a+\lambda$. Therefore, its error component is multiplied
+at each step by
+
+$$
+1-\eta(a+\lambda).
+$$
+
+For every direction to contract, we require
+
+$$
+|1-\eta(a+\lambda)|<1.
+$$
+
+Since the largest eigenvalue of $\mathbf A_\lambda$ is $M=9.09$, this gives
+
+$$
+0<\eta<\frac{2}{M}
+=
+\frac{2}{9.09}
+\approx0.2200.
+$$
+
+For $\eta=1/M$, the contraction factor in the direction with eigenvalue
+$9.09$ is
+
+$$
+1-\frac{9.09}{9.09}=0.
+$$
+
+For the direction with eigenvalue $0.10$, the contraction factor is
+
+$$
+1-\frac{0.10}{9.09}
+\approx0.9890.
+$$
+
+Thus the large-eigenvalue direction converges much faster; its error
+vanishes in one step, while the small-eigenvalue direction contracts only
+slowly.
+
+For $\eta=2.1/M$, the contraction factor in the direction corresponding
+to $M$ is
+
+$$
+1-\frac{2.1}{M}M
+=
+-1.1.
+$$
+
+Since
+
+$$
+|-1.1|>1,
+$$
+
+the error in this direction grows in magnitude while alternating signs.
+Therefore, assuming the initial error has a nonzero component in this
+direction, gradient descent does not converge.
+
+
+c. Increasing $\lambda$ generally improves the condition number. Explain why choosing $\lambda$ to make gradient descent converge as quickly as possible is not a valid statistical tuning rule.
+
+
+### Solution
+
+Increasing $\lambda$ generally improves the condition number because it raises
+the smaller eigenvalues of the curvature matrix. This can make gradient descent
+converge more quickly.
+
+However, the value of $\lambda$ also controls the statistical amount of
+shrinkage. Increasing $\lambda$ reduces variance but increases bias. A very
+large value of $\lambda$ may therefore make the optimization problem extremely
+well conditioned while shrinking the coefficients too strongly and causing
+underfitting.
+
+Thus computational convergence speed is not the same as statistical predictive
+performance. The ridge penalty should be selected using a statistical criterion,
+such as cross-validation or GCV, rather than by choosing the value that makes
+gradient descent converge fastest.
+
+
+## Question 5: Selecting the ridge penalty for real-estate prediction
+
+The supplied `data/realestate.csv` contains 414 real-estate transactions from Sindian District, New Taipei City, Taiwan. The quantitative response `price` is the unit house price. The six predictors are the transaction date, house age, distance to the nearest mass rapid transit station, number of nearby convenience stores, latitude, and longitude. Treat all six predictors as quantitative in this question. The column `row_id` identifies an observation and must not be used as a predictor.
+
+The file `data/realestate-split-folds.csv` assigns 332 observations to the training set and 82 observations to the final test set. It also gives ten fold labels for the training observations. Match the two files using `row_id` and do not use the test responses while selecting a model.
+
+Use the penalty grid
+
+$$
+\Lambda
+=
+\{0\}
+\mathbin{\cup}
+\left\{
+10^{-4+0.05l}:l=0,\ldots,120
+\right\}.
+$$
+
+For every fit, center and standardize each predictor using only the observations available to that fit, with the variance divided by the number of fitting observations. Center the response and leave the intercept unpenalized.
+
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+realestate = pd.read_csv("data/realestate.csv")
+split = pd.read_csv("data/realestate-split-folds.csv")
+
+data = realestate.merge(split, on="row_id")
+
+print(data.head())
+print(data.columns)
+
+print(realestate.columns)
+print(split.columns)
+
+predictors = [
+    "date",
+    "age",
+    "distance",
+    "stores",
+    "latitude",
+    "longitude"
+]
+response = "price"
+
+lambdas = np.concatenate([
+    np.array([0.0]),
+    10 ** (-4 + 0.05 * np.arange(121))
+])
+
+print(lambdas)
+
+ddof=0
+def standardize_fit(X):
+    mean = X.mean(axis=0)
+    scale = X.std(axis=0, ddof=0)
+    X_std = (X - mean) / scale
+    return X_std, mean, scale
+
+
+def standardize_apply(X, mean, scale):
+    return (X - mean) / scale
+
+
+def ridge_fit(X, y, lam):
+    n, p = X.shape
+
+    y_mean = y.mean()
+    y_centered = y - y_mean
+
+    beta = np.linalg.solve(
+        X.T @ X + n * lam * np.eye(p),
+        X.T @ y_centered
+    )
+
+    return y_mean, beta
+
+
+def ridge_predict(X, intercept, beta):
+    return intercept + X @ beta
+```
+
+a. Perform ten-fold cross-validation over $\Lambda$ using the supplied training folds. Estimate the predictor means and scales separately within each set of nine training folds. For each $\lambda$, calculate the mean validation MSE and $\operatorname{SE}(\lambda)$, the sample standard deviation of the ten fold errors divided by $\sqrt{10}$. Use this SE for the conventional one-standard-error heuristic. Plot the mean validation MSE and identify $\lambda_{\min}$. Choose $\lambda_{\mathrm{1se}}$ as the largest candidate in $\Lambda$, including OLS, satisfying
+
+$$
+\overline{\operatorname{MSE}}(\lambda)
+\leq
+\overline{\operatorname{MSE}}(\lambda_{\min})
++
+\operatorname{SE}(\lambda_{\min}).
+$$
+
+
+### Solution
+
+```{python}
+train = data[data["split"] == "train"].copy()
+test = data[data["split"] == "test"].copy()
+
+print(len(train))
+print(len(test))
+
+#print(split.columns)
+#print(data.columns)
+#print(split.head())
+
+fold_values = sorted(train["cv_fold"].dropna().unique())
+
+cv_errors = np.zeros((len(fold_values), len(lambdas)))
+
+for i, fold in enumerate(fold_values):
+
+    fit_data = train[train["cv_fold"] != fold]
+    val_data = train[train["cv_fold"] == fold]
+
+    X_fit_raw = fit_data[predictors].to_numpy()
+    y_fit = fit_data[response].to_numpy()
+
+    X_val_raw = val_data[predictors].to_numpy()
+    y_val = val_data[response].to_numpy()
+
+    # Estimate mean and scale using only the other nine folds
+    X_fit, x_mean, x_scale = standardize_fit(X_fit_raw)
+
+    # Apply the same scaling to the validation fold
+    X_val = standardize_apply(
+        X_val_raw,
+        x_mean,
+        x_scale
+    )
+
+    for j, lam in enumerate(lambdas):
+
+        intercept, beta = ridge_fit(
+            X_fit,
+            y_fit,
+            lam
+        )
+
+        y_val_hat = ridge_predict(
+            X_val,
+            intercept,
+            beta
+        )
+
+        cv_errors[i, j] = np.mean(
+            (y_val - y_val_hat) ** 2
+        )
+
+ddof=1
+cv_mean = cv_errors.mean(axis=0)
+
+cv_se = cv_errors.std(
+    axis=0,
+    ddof=1
+) / np.sqrt(10)
+
+idx_min = np.argmin(cv_mean)
+
+lambda_min = lambdas[idx_min]
+
+threshold = cv_mean[idx_min] + cv_se[idx_min]
+
+eligible = lambdas[cv_mean <= threshold]
+
+lambda_1se = eligible.max()
+
+print("lambda_min =", lambda_min)
+print("minimum CV MSE =", cv_mean[idx_min])
+print("SE at lambda_min =", cv_se[idx_min])
+print("lambda_1se =", lambda_1se)
+
+threshold = (
+    cv_mean[idx_min]
+    + cv_se[idx_min]
+)
+
+eligible = lambdas[cv_mean <= threshold]
+
+lambda_1se = eligible.max()
+
+print("lambda_1se =", lambda_1se)
+
+plt.figure()
+
+positive = lambdas > 0
+
+plt.plot(
+    lambdas[positive],
+    cv_mean[positive],
+    label="Mean CV MSE"
+)
+
+plt.fill_between(
+    lambdas[positive],
+    cv_mean[positive] - cv_se[positive],
+    cv_mean[positive] + cv_se[positive],
+    alpha=0.2,
+    label="+/- 1 SE"
+)
+
+plt.xscale("log")
+plt.xlabel("lambda")
+plt.ylabel("Mean validation MSE")
+plt.title("10-fold cross-validation")
+
+plt.axvline(
+    lambda_min,
+    linestyle="--",
+    label="lambda_min"
+)
+
+plt.axvline(
+    lambda_1se,
+    linestyle="--",
+    label="lambda_1se"
+)
+
+plt.legend()
+plt.show()
+```
+
+Ten-fold cross-validation was performed using the supplied folds. Within each
+fold, predictor means and scales were estimated using only the other nine
+training folds and were then applied to the validation fold.
+
+The value minimizing the mean validation MSE was
+
+$$
+\lambda_{\min} \approx 0.01995.
+$$
+
+Using the one-standard-error rule,
+
+$$
+\overline{\operatorname{MSE}}(\lambda)
+\leq
+\overline{\operatorname{MSE}}(\lambda_{\min})
++
+\operatorname{SE}(\lambda_{\min}),
+$$
+
+the largest eligible penalty was
+
+$$
+\lambda_{\mathrm{1se}} \approx 1.58489.
+$$
+
+b. Use all $n=332$ training observations to calculate the [lecture's GCV criterion](https://teazrq.github.io/stat432rpy/topics/ridge-regression/optimization-and-cross-validation.html#loocv-and-gcv) for each $\lambda\in\Lambda$:
+
+$$
+\operatorname{GCV}(\lambda)
+=
+\frac{
+\operatorname{MSE}_{\mathrm{train}}(\lambda)
+}{
+\left\{
+1-\operatorname{df}_{\mathrm{eff}}(\lambda)/n
+\right\}^2
+}.
+$$
+
+Here $\operatorname{MSE}_{\mathrm{train}}$ is the training MSE, and $\operatorname{df}_{\mathrm{eff}}$ includes the unpenalized intercept, as in Question 3. Estimate means and scales once from all training observations and keep them fixed for this calculation. Plot the GCV curve and identify $\lambda_{\mathrm{GCV}}$.
+
+
+### Solution
+
+```{python}
+X_train_raw = train[predictors].to_numpy()
+y_train = train[response].to_numpy()
+
+X_train, full_mean, full_scale = standardize_fit(X_train_raw)
+
+n_train = len(train)
+
+print(n_train)
+
+singular_values = np.linalg.svd(
+    X_train,
+    compute_uv=False
+)
+
+def effective_df(singular_values, n, lam):
+    return 1 + np.sum(
+        singular_values**2 /
+        (singular_values**2 + n * lam)
+    )
+
+gcv_values = []
+train_mse_values = []
+df_values = []
+
+for lam in lambdas:
+
+    intercept, beta = ridge_fit(
+        X_train,
+        y_train,
+        lam
+    )
+
+    y_hat = ridge_predict(
+        X_train,
+        intercept,
+        beta
+    )
+
+    train_mse = np.mean(
+        (y_train - y_hat) ** 2
+    )
+
+    df_eff = effective_df(
+        singular_values,
+        n_train,
+        lam
+    )
+
+    gcv = train_mse / (
+        1 - df_eff / n_train
+    ) ** 2
+
+    train_mse_values.append(train_mse)
+    df_values.append(df_eff)
+    gcv_values.append(gcv)
+
+gcv_values = np.array(gcv_values)
+
+idx_gcv = np.argmin(gcv_values)
+
+lambda_gcv = lambdas[idx_gcv]
+
+print("lambda_GCV =", lambda_gcv)
+print("minimum GCV =", gcv_values[idx_gcv])
+
+plt.figure()
+
+plt.plot(
+    lambdas[1:],
+    gcv_values[1:]
+)
+
+plt.xscale("log")
+plt.xlabel("lambda")
+plt.ylabel("GCV")
+plt.title("Generalized Cross-Validation")
+
+plt.axvline(
+    lambda_gcv,
+    linestyle="--"
+)
+
+plt.show()
+```
+
+Using all 332 training observations, I standardized the predictors once using
+the training-set means and scales. For each value of $\lambda$, I computed
+
+$$
+\operatorname{GCV}(\lambda)
+=
+\frac{
+\operatorname{MSE}_{\mathrm{train}}(\lambda)
+}{
+\left(
+1-\operatorname{df}_{\mathrm{eff}}(\lambda)/n
+\right)^2
+}.
+$$
+
+The GCV criterion was minimized at
+
+$$
+\lambda_{\mathrm{GCV}}
+\approx 0.02818,
+$$
+
+with a minimum GCV value of approximately
+
+$$
+83.502.
+$$
+
+c. Fix all three choices before examining the test responses. Refit OLS and ridge at $\lambda_{\min}$, $\lambda_{\mathrm{1se}}$, and $\lambda_{\mathrm{GCV}}$ using all training observations. Report each model's training MSE, test MSE, and effective degrees of freedom. Interpret the differences and explain why the model with the smallest observed test MSE must not be selected after viewing this table.
+
+### Solution
+```{python}
+X_test_raw = test[predictors].to_numpy()
+y_test = test[response].to_numpy()
+
+X_test = standardize_apply(
+    X_test_raw,
+    full_mean,
+    full_scale
+)
+
+models = {
+    "OLS": 0.0,
+    "lambda_min": lambda_min,
+    "lambda_1se": lambda_1se,
+    "lambda_GCV": lambda_gcv
+}
+
+final_results = []
+
+for name, lam in models.items():
+
+    intercept, beta = ridge_fit(
+        X_train,
+        y_train,
+        lam
+    )
+
+    train_pred = ridge_predict(
+        X_train,
+        intercept,
+        beta
+    )
+
+    test_pred = ridge_predict(
+        X_test,
+        intercept,
+        beta
+    )
+
+    train_mse = np.mean(
+        (y_train - train_pred) ** 2
+    )
+
+    test_mse = np.mean(
+        (y_test - test_pred) ** 2
+    )
+
+    df_eff = effective_df(
+        singular_values,
+        n_train,
+        lam
+    )
+
+    final_results.append({
+        "model": name,
+        "lambda": lam,
+        "train_mse": train_mse,
+        "test_mse": test_mse,
+        "df_eff": df_eff
+    })
+
+final_results = pd.DataFrame(final_results)
+
+print(final_results)
+```
+
+After fixing $\lambda_{\min}$, $\lambda_{\mathrm{1se}}$, and
+$\lambda_{\mathrm{GCV}}$ using only the training data, I refit OLS and the
+three ridge models using all 332 training observations.
+
+OLS has the largest effective degrees of freedom,
+
+$$
+\operatorname{df}_{\mathrm{eff}} = 7,
+$$
+
+because it applies no shrinkage. The models using $\lambda_{\min}$ and
+$\lambda_{\mathrm{GCV}}$ have effective degrees of freedom close to 7, so they
+apply only mild shrinkage. Their test MSE values are also very similar to that
+of OLS.
+
+In contrast, the one-standard-error choice,
+
+$$
+\lambda_{\mathrm{1se}} \approx 1.5849,
+$$
+
+applies much stronger shrinkage, reducing the effective degrees of freedom to
+about
+
+$$
+3.03.
+$$
+
+This substantially increases the training MSE. Its observed test MSE is also
+higher than those of the other three fitted models, which is consistent with the
+stronger shrinkage introducing substantial bias in this particular test sample.
+This does not mean that the one-standard-error rule is generally invalid; it
+deliberately favors a more strongly regularized model whose validation error is
+still within one standard error of the minimum.
+
+::: {.callout-tip title="Starter workflow"}
+After matching the two files by `row_id`, use this order:
+
+```text
+for each validation fold:
+    estimate predictor means and scales from the other nine folds
+    for each lambda:
+        fit on those nine folds and record validation MSE
+summarize the ten fold errors and fix lambda_min and lambda_1se
+compute GCV using all training observations and fix lambda_GCV
+only then refit the four reported models and evaluate the test responses
+```
+:::
+
+## Reference
+
+The real-estate data come from I-Cheng Yeh's [Real Estate Valuation dataset](https://archive.ics.uci.edu/dataset/477/real%2Bestate%2Bvaluation%2Bda) in the UCI Machine Learning Repository. The distributed data retain the original observations and add only the course train-test and fold assignments.
+
+
+## explain-to-me skill
+
+```markdown
+---
+name: explain-to-me
+description: Explain what a homework question is asking without solving it. Use this skill only when I explicitly ask you to use explain-to-me.
+---
+
+# Explain to Me
+
+Help me understand a homework question before I try to solve it myself.
+
+When I explicitly ask you to use this skill:
+
+1. Explain the main goal of the question in simple language.
+2. Break the question into the specific tasks I am expected to complete.
+3. Explain the statistical concepts or notation that I need to understand.
+4. When relevant, point me to the appropriate Week 3 lecture material, especially:
+   - Ridge Regression: Stability Through Shrinkage
+   - From a Penalized Objective to a Fitted Ridge Model
+5. Give hints or guiding questions that help me start the problem.
+
+Do not complete the homework solution, perform the full derivation, or give the final answer for me.
+```

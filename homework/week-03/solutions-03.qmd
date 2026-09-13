@@ -1,0 +1,1454 @@
+---
+title: "Homework 03 Solutions"
+pagetitle: "Homework 03 Solutions"
+body-classes: "lecture-page practice-page"
+format:
+  html:
+    html-math-method: mathml
+    page-layout: full
+    toc: true
+    toc-location: body
+    toc-title: "On this page"
+    toc-depth: 2
+    code-fold: true
+    code-summary: "Show the solution code"
+---
+
+## Question 1: Build an `explain-to-me` skill
+
+### Original question
+
+::: {.callout-note appearance="simple" icon=false}
+Create a small skill named `explain-to-me` that helps you understand a homework question.
+
+1. Design your `SKILL.md` file so that, when you explicitly ask your agent to use the skill to read a homework question, the agent communicates with you and explains what the question is asking.
+
+2. Keep the skill file short. It should contain a few useful rules, instructions, and a clear statement of your intent. For example, you may ask the agent to explain the goal of the question, clarify what work is required, and point you to an appropriate section of the Week 3 lectures: [Ridge Regression: Stability Through Shrinkage](https://teazrq.github.io/stat432rpy/topics/ridge-regression/ridge-regression.html) or [From a Penalized Objective to a Fitted Ridge Model](https://teazrq.github.io/stat432rpy/topics/ridge-regression/optimization-and-cross-validation.html). The skill should help you understand the question without completing the solution for you.
+
+3. Create the skill yourself or with the help of AI. Save it as `explain-to-me/SKILL.md`. Then ask your AI agent to install the skill using its normal skill-installation method. Test it by explicitly asking the agent to use `explain-to-me` to read and explain Question 2.
+
+4. If the skill does not work well, or if it begins to disturb your usual workflow, ask your agent to remove the installed skill. You may revise and reinstall it if you wish.
+
+5. In all cases, append the complete contents of your developed `explain-to-me/SKILL.md` file at the end of your Homework 3 submission under the heading **`explain-to-me` skill**.
+:::
+
+### Solution
+
+Many short skill files can satisfy the requirements. The following is one example of `explain-to-me/SKILL.md`:
+
+````markdown
+---
+name: explain-to-me
+description: Use when a student explicitly asks for help understanding a STAT 432 homework question without requesting its solution.
+---
+
+# Intent
+
+Help me understand a homework question while leaving the mathematical and computational work for me to complete.
+
+# Instructions
+
+- Read the complete question before responding.
+- Explain its main goal and what I am expected to submit in clear, conversational language.
+- Preserve the notation used in the question.
+- For Questions 2 and 3, use [Ridge Regression: Stability Through Shrinkage](https://teazrq.github.io/stat432rpy/topics/ridge-regression/ridge-regression.html). For Questions 4 and 5, use [From a Penalized Objective to a Fitted Ridge Model](https://teazrq.github.io/stat432rpy/topics/ridge-regression/optimization-and-cross-validation.html). Point me to one relevant section within that page and explain briefly why it will help. Do not invent a section if you cannot access the page.
+- Suggest a reasonable first step, then ask what part remains unclear.
+- Do not carry out the calculations or derivations, write solution code, or give me the final answer.
+````
+
+The front matter gives the skill a clear name and says when it should be used. The intent statement tells the agent the kind of help the student wants. The remaining rules are short and practical: explain the task conversationally, preserve the course notation, use the two supplied Week 3 lecture links, and leave the solution work to the student. The question-to-page mapping limits the search to the appropriate lecture while still asking the agent to choose a useful section. Testing the installed skill on Question 2 reveals whether these instructions produce a useful conversation. If the skill activates at unwanted times or otherwise interferes with the student's workflow, removing it is a reasonable response.
+
+## Question 2: Ridge regression with nearly collinear predictors
+
+### Original question
+
+::: {.callout-note appearance="simple" icon=false}
+Let $n=100$. Generate mutually independent standard normal random variables
+
+$$
+L_i, U_{i1}, U_{i2}, X_{i3}, X_{i4},
+\qquad i=1,\ldots,n,
+$$
+
+and define
+
+$$
+X_{i1}=L_i+0.04U_{i1},
+\qquad
+X_{i2}=L_i+0.04U_{i2}.
+$$
+
+Center and standardize each column of $\mathbf X$ to have mean zero and average squared value one, following the [lecture's scaling convention](https://teazrq.github.io/stat432rpy/topics/ridge-regression/ridge-regression.html#put-every-covariate-on-a-common-scale).
+
+Continue to use $\mathbf X\in\mathbb R^{n\times p}$ for the standardized matrix and keep it fixed throughout the question, where $p=4$ is the number of predictors. The unpenalized intercept gives $p+1=5$ total fitted coefficients. Let
+
+$$
+\boldsymbol\beta
+=
+(1.5,1.5,1,0)^{\mathsf T},
+\qquad
+\boldsymbol\mu
+=
+\mathbf X\boldsymbol\beta.
+$$
+
+Generate a training response and an independent test response at the same predictor values:
+
+$$
+\begin{aligned}
+\mathbf y
+&=
+\boldsymbol\mu+\boldsymbol\epsilon,\\
+\mathbf y^*
+&=
+\boldsymbol\mu+\boldsymbol\epsilon^*,
+\end{aligned}
+$$
+
+where
+
+$$
+\boldsymbol\epsilon,
+\boldsymbol\epsilon^*
+\overset{\mathrm{ind}}{\sim}
+\mathcal N_n(\mathbf0,\mathbf I_n).
+$$
+
+Center the training response as $\widetilde{\mathbf y}=\mathbf y-\bar y\mathbf1_n$. For each $\lambda\in\{0,0.02,0.2\}$, fit the slopes using the lecture's ridge formula:
+
+$$
+\widehat{\boldsymbol\beta}_\lambda
+=
+\left(\mathbf X^{\mathsf T}\mathbf X+n\lambda\mathbf I_p\right)^{-1}
+\mathbf X^{\mathsf T}\widetilde{\mathbf y}.
+$$
+
+The unpenalized intercept is $\widehat\beta_0=\bar y$; add this training mean back when predicting either response. The case $\lambda=0$ is ordinary least squares. Use seed `43231` before generating the design and responses. R and Python use different random-number generators, so their exact numerical results need not agree.
+
+a. Generate $\mathbf X$ once. Report the correlation between its first two columns and its largest and smallest singular values. Use these quantities to explain why the estimator contrast $\widehat\beta_1-\widehat\beta_2$ should be much more variable than $\widehat\beta_1+\widehat\beta_2$.
+
+b. Independently repeat the generation of $\mathbf y$ and $\mathbf y^*$, followed by all three fits, 200 times while keeping $\mathbf X$ fixed. Draw the training and test noise inside each repetition, then reuse that realized pair for all three values of $\lambda$. For each value of $\lambda$, report the empirical mean and standard deviation of
+
+$$
+\widehat\beta_1,
+\quad
+\widehat\beta_2,
+\quad
+\widehat\beta_1+\widehat\beta_2,
+\quad
+\widehat\beta_1-\widehat\beta_2.
+$$
+
+Also report the average training MSE and the average test MSE calculated from the independent test response, where
+
+$$
+\operatorname{MSE}_{\mathrm{test}}
+=
+\frac{1}{n}
+\left\lVert
+\mathbf y^*
+-
+\widehat\beta_0\mathbf1_n
+-
+\mathbf X\widehat{\boldsymbol\beta}
+\right\rVert_2^2.
+$$
+
+c. Interpret the coefficient estimates and test MSE using bias and variance. Explain why ridge can substantially stabilize the individual coefficients without producing an equally large change in the fitted values.
+:::
+
+### Solution
+
+The first two predictors are almost identical. Their sum is a well-observed direction because both columns change together. Their difference is a weak direction because $\mathbf x_1-\mathbf x_2$ is nearly zero. A small singular value records this lack of information.
+
+The following code generates the design once and changes only the two response vectors across the 200 repetitions.
+
+::: {.panel-tabset group="language"}
+
+#### R
+
+```{r}
+#| label: homework-03-q2-r
+
+set.seed(43231)
+n <- 100
+p <- 4
+repetitions <- 200
+
+# Generate one design and keep it fixed.
+L <- rnorm(n)
+U1 <- rnorm(n)
+U2 <- rnorm(n)
+X <- cbind(
+  L + 0.04 * U1,
+  L + 0.04 * U2,
+  rnorm(n),
+  rnorm(n)
+)
+
+x_bar <- colMeans(X)
+X <- sweep(X, 2, x_bar, "-")
+s <- sqrt(colMeans(X^2))
+X <- sweep(X, 2, s, "/")
+
+beta <- c(1.5, 1.5, 1, 0)
+mu <- drop(X %*% beta)
+lambda_grid <- c(0, 0.02, 0.2)
+
+# Axes: repetitions, coefficients, and penalties.
+beta_hat <- array(
+  NA_real_,
+  c(repetitions, p, length(lambda_grid))
+)
+train_mse <- test_mse <- matrix(
+  NA_real_,
+  repetitions,
+  length(lambda_grid)
+)
+
+for (k in seq_len(repetitions)) {
+  y <- mu + rnorm(n)
+  y_test <- mu + rnorm(n)
+  y_centered <- y - mean(y)
+
+  for (l in seq_along(lambda_grid)) {
+    lambda <- lambda_grid[l]
+    beta_hat[k, , l] <- solve(
+      crossprod(X) + n * lambda * diag(p),
+      crossprod(X, y_centered)
+    )
+    y_hat <- mean(y) + drop(X %*% beta_hat[k, , l])
+
+    train_mse[k, l] <- mean((y - y_hat)^2)
+    test_mse[k, l] <- mean((y_test - y_hat)^2)
+  }
+}
+
+coefficient_rows <- lapply(
+  seq_along(lambda_grid),
+  function(l) {
+    data.frame(
+      lambda = lambda_grid[l],
+      beta1 = sprintf(
+        "%.3f (%.3f)",
+        mean(beta_hat[, 1, l]), sd(beta_hat[, 1, l])
+      ),
+      beta2 = sprintf(
+        "%.3f (%.3f)",
+        mean(beta_hat[, 2, l]), sd(beta_hat[, 2, l])
+      ),
+      sum = sprintf(
+        "%.3f (%.3f)",
+        mean(beta_hat[, 1, l] + beta_hat[, 2, l]),
+        sd(beta_hat[, 1, l] + beta_hat[, 2, l])
+      ),
+      difference = sprintf(
+        "%.3f (%.3f)",
+        mean(beta_hat[, 1, l] - beta_hat[, 2, l]),
+        sd(beta_hat[, 1, l] - beta_hat[, 2, l])
+      )
+    )
+  }
+)
+coefficient_summary <- do.call(rbind, coefficient_rows)
+error_summary <- data.frame(
+  lambda = lambda_grid,
+  training_mse = colMeans(train_mse),
+  test_mse = colMeans(test_mse)
+)
+
+singular_values <- svd(X, nu = 0, nv = 0)$d
+print(c(
+  correlation = cor(X[, 1], X[, 2]),
+  largest_singular_value = max(singular_values),
+  smallest_singular_value = min(singular_values)
+), digits = 4)
+knitr::kable(
+  coefficient_summary,
+  caption = "Empirical mean (standard deviation) across 200 repetitions"
+)
+knitr::kable(
+  error_summary,
+  digits = 3,
+  caption = "Average training and test MSE"
+)
+```
+
+#### Python
+
+```{python}
+#| label: homework-03-q2-py
+
+import numpy as np
+import pandas as pd
+
+rng = np.random.default_rng(43231)
+n, p, repetitions = 100, 4, 200
+
+# Generate one design and keep it fixed.
+L = rng.normal(size=n)
+U1 = rng.normal(size=n)
+U2 = rng.normal(size=n)
+X = np.column_stack(
+    (L + 0.04 * U1, L + 0.04 * U2, rng.normal(size=n), rng.normal(size=n))
+)
+
+x_bar = X.mean(axis=0)
+X = X - x_bar
+s = np.sqrt(np.mean(X**2, axis=0))
+X = X / s
+
+beta = np.array([1.5, 1.5, 1.0, 0.0])
+mu = X @ beta
+lambda_grid = np.array([0.0, 0.02, 0.2])
+
+# Axes: repetitions, coefficients, and penalties.
+beta_hat = np.empty((repetitions, p, len(lambda_grid)))
+train_mse = np.empty((repetitions, len(lambda_grid)))
+test_mse = np.empty((repetitions, len(lambda_grid)))
+
+for k in range(repetitions):
+    y = mu + rng.normal(size=n)
+    y_test = mu + rng.normal(size=n)
+    y_centered = y - y.mean()
+
+    for l, lam in enumerate(lambda_grid):
+        beta_hat[k, :, l] = np.linalg.solve(
+            X.T @ X + n * lam * np.eye(p),
+            X.T @ y_centered,
+        )
+        y_hat = y.mean() + X @ beta_hat[k, :, l]
+
+        train_mse[k, l] = np.mean((y - y_hat) ** 2)
+        test_mse[k, l] = np.mean((y_test - y_hat) ** 2)
+
+coefficient_rows = []
+for l, lam in enumerate(lambda_grid):
+    coefficient_rows.append(
+        {
+            "lambda": lam,
+            "beta1": (
+                f"{beta_hat[:, 0, l].mean():.3f} "
+                f"({beta_hat[:, 0, l].std(ddof=1):.3f})"
+            ),
+            "beta2": (
+                f"{beta_hat[:, 1, l].mean():.3f} "
+                f"({beta_hat[:, 1, l].std(ddof=1):.3f})"
+            ),
+            "sum": (
+                f"{(beta_hat[:, 0, l] + beta_hat[:, 1, l]).mean():.3f} "
+                f"({(beta_hat[:, 0, l] + beta_hat[:, 1, l]).std(ddof=1):.3f})"
+            ),
+            "difference": (
+                f"{(beta_hat[:, 0, l] - beta_hat[:, 1, l]).mean():.3f} "
+                f"({(beta_hat[:, 0, l] - beta_hat[:, 1, l]).std(ddof=1):.3f})"
+            ),
+        }
+    )
+
+coefficient_summary = pd.DataFrame(coefficient_rows)
+error_summary = pd.DataFrame(
+    {
+        "lambda": lambda_grid,
+        "training_mse": train_mse.mean(axis=0),
+        "test_mse": test_mse.mean(axis=0),
+    }
+)
+
+singular_values = np.linalg.svd(X, compute_uv=False)
+print(
+    pd.Series(
+        {
+            "correlation": np.corrcoef(X[:, 0], X[:, 1])[0, 1],
+            "largest_singular_value": singular_values.max(),
+            "smallest_singular_value": singular_values.min(),
+        }
+    ).round(4)
+)
+print(coefficient_summary.to_string(index=False))
+print(error_summary.round(3).to_string(index=False))
+```
+
+:::
+
+The correlation is about $0.998$. The smallest singular value is approximately $0.4$ to $0.5$, whereas the largest is about $14$. The design therefore contains much less information in its weakest direction.
+
+The individual OLS coefficients have large standard deviations, and the coefficient difference is particularly unstable. In contrast, the estimated sum has a standard deviation of about $0.1$. Ridge with $\lambda=0.02$ sharply reduces the variability of the individual coefficients and the difference while changing the sum relatively little.
+
+The stronger penalty $\lambda=0.2$ reduces variance further, but it also shrinks the coefficient sum noticeably below its true value of $3$. That additional bias raises the test MSE in both language implementations. The intermediate penalty gives a slightly smaller average test MSE than OLS in this simulation.
+
+## Question 3: What does ridge regression shrink?
+
+### Original question
+
+::: {.callout-note appearance="simple" icon=false}
+Let $\mathbf X\in\mathbb R^{n\times p}$ be a centered predictor matrix, and let $\widetilde{\mathbf y}\in\mathbb R^n$ be the centered response. Use the supplied predictor scales for this algebraic question; the columns need not have unit variance. Here $p$ counts predictors, $\boldsymbol\beta\in\mathbb R^p$ contains their slopes, and $p+1$ counts all fitted coefficients, including the separately fitted, unpenalized intercept. Ridge regression minimizes
+
+$$
+L_\lambda(\boldsymbol\beta)
+=
+\frac{1}{2n}
+\left\lVert
+\widetilde{\mathbf y}-\mathbf X\boldsymbol\beta
+\right\rVert_2^2
++
+\frac{\lambda}{2}
+\lVert\boldsymbol\beta\rVert_2^2.
+$$
+
+a. Derive the ridge normal equation
+
+$$
+\left(
+\mathbf X^{\mathsf T}\mathbf X
++n\lambda\mathbf I_p
+\right)
+\widehat{\boldsymbol\beta}_\lambda
+=
+\mathbf X^{\mathsf T}\widetilde{\mathbf y}.
+$$
+
+Explain why it has a unique solution whenever $\lambda>0$, even if $\mathbf X$ is rank deficient or $p>n$.
+
+b. Let
+
+$$
+\mathbf X
+=
+\mathbf U_r\mathbf D_r\mathbf V_r^{\mathsf T}
+$$
+
+be a compact singular value decomposition, where $r=\operatorname{rank}(\mathbf X)$, $\mathbf U_r\in\mathbb R^{n\times r}$, $\mathbf D_r\in\mathbb R^{r\times r}$, and $\mathbf V_r\in\mathbb R^{p\times r}$. Show that ridge multiplies the fitted response component in the $j$th left singular-vector direction, for $j=1,\ldots,r$, by
+
+$$
+\rho_j(\lambda)
+=
+\frac{d_j^2}{d_j^2+n\lambda}.
+$$
+
+Suppose $n=100$, $\lambda=0.01$, and the nonzero singular values are
+
+$$
+d_1=10,
+\qquad
+d_2=2,
+\qquad
+d_3=0.2.
+$$
+
+Calculate the three shrinkage factors and the total effective degrees of freedom, including the unpenalized intercept:
+
+$$
+\operatorname{df}_{\mathrm{eff}}(\lambda)
+=
+1+\sum_{j=1}^3\rho_j(\lambda).
+$$
+
+c. Which direction receives the strongest shrinkage? Explain why shrinking this direction can reduce prediction variance. Under what circumstance could the same shrinkage produce substantial prediction bias?
+:::
+
+### Solution
+
+Differentiate the objective with respect to $\boldsymbol\beta$:
+
+$$
+\nabla L_\lambda(\boldsymbol\beta)
+=
+-\frac{1}{n}
+\mathbf X^{\mathsf T}
+(\widetilde{\mathbf y}-\mathbf X\boldsymbol\beta)
++
+\lambda\boldsymbol\beta.
+$$
+
+Setting the gradient equal to zero gives
+
+$$
+\frac{1}{n}
+\mathbf X^{\mathsf T}\mathbf X
+\widehat{\boldsymbol\beta}_\lambda
++
+\lambda\widehat{\boldsymbol\beta}_\lambda
+=
+\frac{1}{n}
+\mathbf X^{\mathsf T}\widetilde{\mathbf y}.
+$$
+
+Multiplying by $n$ gives the stated normal equation and hence
+
+$$
+\widehat{\boldsymbol\beta}_\lambda
+=
+\left(
+\mathbf X^{\mathsf T}\mathbf X+n\lambda\mathbf I_p
+\right)^{-1}
+\mathbf X^{\mathsf T}\widetilde{\mathbf y}.
+$$
+
+For every nonzero vector $\mathbf a\in\mathbb R^p$,
+
+$$
+\mathbf a^{\mathsf T}
+\left(
+\mathbf X^{\mathsf T}\mathbf X+n\lambda\mathbf I_p
+\right)
+\mathbf a
+=
+\lVert\mathbf X\mathbf a\rVert_2^2
++n\lambda\lVert\mathbf a\rVert_2^2
+>0
+$$
+
+when $\lambda>0$. The matrix is therefore positive definite and invertible, even when $\mathbf X^{\mathsf T}\mathbf X$ is singular.
+
+Using the singular value decomposition,
+
+$$
+\widehat{\boldsymbol\beta}_\lambda
+=
+\mathbf V_r
+\left(
+\mathbf D_r^2+n\lambda\mathbf I_r
+\right)^{-1}
+\mathbf D_r
+\mathbf U_r^{\mathsf T}\widetilde{\mathbf y}.
+$$
+
+If $r<p$, directions orthogonal to the columns of $\mathbf V_r$ lie in the null space of $\mathbf X$. Ridge sets those coefficient components to zero because they increase the penalty without changing the fitted response.
+
+Multiplying by $\mathbf X=\mathbf U_r\mathbf D_r\mathbf V_r^{\mathsf T}$ gives
+
+$$
+\mathbf X\widehat{\boldsymbol\beta}_\lambda
+=
+\sum_{j=1}^r
+\frac{d_j^2}{d_j^2+n\lambda}
+\mathbf u_j\mathbf u_j^{\mathsf T}
+\widetilde{\mathbf y}.
+$$
+
+Thus, the fitted response component in direction $\mathbf u_j$ is multiplied by $\rho_j(\lambda)$. Here $n\lambda=1$, so
+
+$$
+\begin{aligned}
+\rho_1
+&=
+\frac{100}{101}
+\approx0.9901,\\
+\rho_2
+&=
+\frac{4}{5}
+=0.8,\\
+\rho_3
+&=
+\frac{0.04}{1.04}
+\approx0.0385.
+\end{aligned}
+$$
+
+Including the intercept,
+
+$$
+\operatorname{df}_{\mathrm{eff}}(0.01)
+=
+1+0.9901+0.8+0.0385
+\approx2.8286.
+$$
+
+The third direction receives the strongest shrinkage. Its small singular value means that the data provide little information in that direction, so an unregularized estimate can have high variance. Shrinkage reduces this sensitivity to response noise. However, if the true mean response has a large component in the third left singular-vector direction, reducing that component to about $3.85\%$ of its least-squares value can introduce substantial prediction bias.
+
+## Question 4: Ridge regression and optimization
+
+### Original question
+
+::: {.callout-note appearance="simple" icon=false}
+Let $\mathbf X\in\mathbb R^{n\times p}$ be a centered predictor matrix with $p=2$. Its columns need not have unit variance in this question. The intercept is fitted separately and is not penalized. Suppose the two eigenvalues of
+
+$$
+\mathbf A_0
+=
+\frac{1}{n}\mathbf X^{\mathsf T}\mathbf X
+$$
+
+are $9$ and $0.01$. Ridge regression with $\lambda=0.09$ has curvature matrix
+
+$$
+\mathbf A_\lambda
+=
+\frac{1}{n}\mathbf X^{\mathsf T}\mathbf X
++
+\lambda\mathbf I_p.
+$$
+
+a. Calculate the condition numbers of $\mathbf A_0$ and $\mathbf A_\lambda$. Explain what the change says about the geometry of the ridge objective.
+
+b. Gradient descent uses
+
+$$
+\boldsymbol\beta^{(k+1)}
+=
+\boldsymbol\beta^{(k)}
+-
+\eta\nabla L_\lambda\!\left(\boldsymbol\beta^{(k)}\right).
+$$
+
+Let $\widehat{\boldsymbol\beta}_\lambda$ be the ridge minimizer and define the optimization error
+
+$$
+\mathbf e^{(k)}
+=
+\boldsymbol\beta^{(k)}
+-
+\widehat{\boldsymbol\beta}_\lambda.
+$$
+
+Show that the component of $\mathbf e^{(k)}$ in an eigendirection with unpenalized eigenvalue $a$ is multiplied at each step by
+
+$$
+1-\eta(a+\lambda).
+$$
+
+Let $M=9.09$, the largest eigenvalue of $\mathbf A_\lambda$. Find the interval of step sizes that contracts every eigendirection. Then compare these two choices:
+
+- For $\eta=1/M$, calculate the two contraction factors and explain which direction converges faster.
+- For $\eta=2.1/M$, determine whether the method converges. Assume the initial error has a nonzero component in the eigendirection corresponding to $M$.
+
+c. Increasing $\lambda$ generally improves the condition number. Explain why choosing $\lambda$ to make gradient descent converge as quickly as possible is not a valid statistical tuning rule.
+:::
+
+### Solution
+
+The condition number is the ratio of the largest to the smallest eigenvalue. Without ridge,
+
+$$
+\kappa(\mathbf A_0)
+=
+\frac{9}{0.01}
+=900.
+$$
+
+Adding $\lambda=0.09$ changes the two eigenvalues to
+
+$$
+9+0.09=9.09
+\qquad\text{and}\qquad
+0.01+0.09=0.10.
+$$
+
+Therefore,
+
+$$
+\kappa(\mathbf A_\lambda)
+=
+\frac{9.09}{0.10}
+=90.9.
+$$
+
+The ridge objective is still more curved in one direction than the other, but the disparity is much smaller. Its contours are less elongated, which improves numerical conditioning.
+
+Let $\widehat{\boldsymbol\beta}_\lambda$ denote the ridge minimizer and define
+
+$$
+\mathbf e^{(k)}
+=
+\boldsymbol\beta^{(k)}
+-
+\widehat{\boldsymbol\beta}_\lambda.
+$$
+
+Because the ridge objective is quadratic,
+
+$$
+\nabla L_\lambda(\boldsymbol\beta^{(k)})
+=
+\mathbf A_\lambda\mathbf e^{(k)}.
+$$
+
+The error update is consequently
+
+$$
+\mathbf e^{(k+1)}
+=
+(\mathbf I_p-\eta\mathbf A_\lambda)
+\mathbf e^{(k)}.
+$$
+
+In an eigendirection whose unpenalized eigenvalue is $a$, $\mathbf A_\lambda$ has eigenvalue $a+\lambda$. The corresponding error component is therefore multiplied by $1-\eta(a+\lambda)$.
+
+Every direction contracts when
+
+$$
+|1-\eta(a+\lambda)|<1
+$$
+
+for every eigenvalue. It is enough to impose
+
+$$
+0<\eta<\frac{2}{M}
+=
+\frac{2}{9.09}
+\approx0.2200.
+$$
+
+For $\eta=1/M$, the contraction factors are
+
+$$
+1-\frac{9.09}{9.09}=0
+$$
+
+in the strong direction and
+
+$$
+1-\frac{0.10}{9.09}
+\approx0.9890
+$$
+
+in the weak direction. The strong-direction error disappears in one step, but the weak-direction error decreases slowly.
+
+For $\eta=2.1/M$, the strong-direction factor is
+
+$$
+1-\frac{2.1(9.09)}{9.09}
+=-1.1.
+$$
+
+Its magnitude exceeds one, so a nonzero initial error component in that eigendirection alternates sign and grows. Under the condition stated in the question, the method does not converge even though the weak-direction component may still contract.
+
+The penalty defines the statistical estimator. A larger value can reduce variance and improve conditioning, but it also introduces more shrinkage bias. The step size and numerical algorithm should be chosen to solve the objective accurately. The penalty should be chosen using statistical information about prediction, such as cross-validation or GCV, rather than computational speed.
+
+## Question 5: Selecting the ridge penalty for real-estate prediction
+
+### Original question
+
+::: {.callout-note appearance="simple" icon=false}
+The supplied `data/realestate.csv` contains 414 real-estate transactions from Sindian District, New Taipei City, Taiwan. The quantitative response `price` is the unit house price. The six predictors are the transaction date, house age, distance to the nearest mass rapid transit station, number of nearby convenience stores, latitude, and longitude. Treat all six predictors as quantitative in this question. The column `row_id` identifies an observation and must not be used as a predictor.
+
+The file `data/realestate-split-folds.csv` assigns 332 observations to the training set and 82 observations to the final test set. It also gives ten fold labels for the training observations. Match the two files using `row_id` and do not use the test responses while selecting a model.
+
+Use the penalty grid
+
+$$
+\Lambda
+=
+\{0\}
+\mathbin{\cup}
+\left\{
+10^{-4+0.05l}:l=0,\ldots,120
+\right\}.
+$$
+
+For every fit, center and standardize each predictor using only the observations available to that fit, with the variance divided by the number of fitting observations. Center the response and leave the intercept unpenalized.
+
+a. Perform ten-fold cross-validation over $\Lambda$ using the supplied training folds. Estimate the predictor means and scales separately within each set of nine training folds. For each $\lambda$, calculate the mean validation MSE and $\operatorname{SE}(\lambda)$, the sample standard deviation of the ten fold errors divided by $\sqrt{10}$. Use this SE for the conventional one-standard-error heuristic. Plot the mean validation MSE and identify $\lambda_{\min}$. Choose $\lambda_{\mathrm{1se}}$ as the largest candidate in $\Lambda$, including OLS, satisfying
+
+$$
+\overline{\operatorname{MSE}}(\lambda)
+\leq
+\overline{\operatorname{MSE}}(\lambda_{\min})
++
+\operatorname{SE}(\lambda_{\min}).
+$$
+
+b. Use all $n=332$ training observations to calculate the [lecture's GCV criterion](https://teazrq.github.io/stat432rpy/topics/ridge-regression/optimization-and-cross-validation.html#loocv-and-gcv) for each $\lambda\in\Lambda$:
+
+$$
+\operatorname{GCV}(\lambda)
+=
+\frac{
+\operatorname{MSE}_{\mathrm{train}}(\lambda)
+}{
+\left\{
+1-\operatorname{df}_{\mathrm{eff}}(\lambda)/n
+\right\}^2
+}.
+$$
+
+Here $\operatorname{MSE}_{\mathrm{train}}$ is the training MSE, and $\operatorname{df}_{\mathrm{eff}}$ includes the unpenalized intercept, as in Question 3. Estimate means and scales once from all training observations and keep them fixed for this calculation. Plot the GCV curve and identify $\lambda_{\mathrm{GCV}}$.
+
+c. Fix all three choices before examining the test responses. Refit OLS and ridge at $\lambda_{\min}$, $\lambda_{\mathrm{1se}}$, and $\lambda_{\mathrm{GCV}}$ using all training observations. Report each model's training MSE, test MSE, and effective degrees of freedom. Interpret the differences and explain why the model with the smallest observed test MSE must not be selected after viewing this table.
+
+::: {.callout-tip title="Starter workflow"}
+After matching the two files by `row_id`, use this order:
+
+```text
+for each validation fold:
+    estimate predictor means and scales from the other nine folds
+    for each lambda:
+        fit on those nine folds and record validation MSE
+summarize the ten fold errors and fix lambda_min and lambda_1se
+compute GCV using all training observations and fix lambda_GCV
+only then refit the four reported models and evaluate the test responses
+```
+:::
+:::
+
+### Solution
+
+The ridge fitting function below performs three statistical operations. It estimates the predictor means and scales from the fitting observations, solves the ridge normal equation on the standardized scale, and transforms the coefficients back to the original predictor scale for prediction. It is used for the final refits. In the cross-validation loop, each fold's means, scales, and response center are computed once and reused across every penalty. In the GCV loop, the full training means, scales, and response center are likewise computed once and reused across the full penalty grid.
+
+Write $\bar x_j$ and $s_j$ for the fitting-sample mean and scale of raw predictor $j$, and $\bar y$ for the fitting-sample response mean. The code uses `x_bar`, `s`, and `y_bar` for these quantities, `X` for standardized predictors, and `beta_hat` for their fitted slopes. Conversion to raw-scale coefficients is
+
+$$
+\widehat\beta_{\mathrm{raw},j}=\frac{\widehat\beta_j}{s_j},
+\qquad
+\widehat\beta_{\mathrm{raw},0}=\bar y-\sum_{j=1}^p\bar x_j\widehat\beta_{\mathrm{raw},j}.
+$$
+
+The code calls these `beta_hat_raw` and `raw_intercept`. Both representations give the same predictions.
+
+For GCV, use the training MSE and the total effective degrees of freedom. With $n=332$ training observations and $p=6$ predictors, the singular values $d_j$ of the standardized training matrix give
+
+$$
+\operatorname{df}_{\mathrm{eff}}(\lambda)
+=
+1+
+\sum_{j=1}^p
+\frac{d_j^2}{d_j^2+n\lambda}.
+$$
+
+The leading one accounts for the unpenalized intercept.
+
+The quantity called `cv_se` below is the conventional one-standard-error summary across folds. Because the ten fitted training sets overlap, it is a useful model-selection heuristic, not an independent-sample standard error.
+
+::: {.panel-tabset group="language"}
+
+#### R
+
+```{r}
+#| label: homework-03-q5-setup-r
+
+data_dir <- if (file.exists("data/realestate.csv")) {
+  "data"
+} else {
+  "practice/weeks/week-03/data"
+}
+
+realestate <- read.csv(
+  file.path(data_dir, "realestate.csv"),
+  check.names = FALSE
+)
+split_folds <- read.csv(
+  file.path(data_dir, "realestate-split-folds.csv"),
+  check.names = FALSE
+)
+stopifnot(
+  anyDuplicated(realestate$row_id) == 0,
+  anyDuplicated(split_folds$row_id) == 0,
+  nrow(realestate) == nrow(split_folds)
+)
+match_index <- match(split_folds$row_id, realestate$row_id)
+stopifnot(
+  !anyNA(match_index),
+  setequal(realestate$row_id, split_folds$row_id)
+)
+course_data <- cbind(
+  split_folds,
+  realestate[
+    match_index,
+    setdiff(names(realestate), "row_id"),
+    drop = FALSE
+  ]
+)
+stopifnot(identical(course_data$row_id, split_folds$row_id))
+
+feature_names <- c(
+  "date", "age", "distance",
+  "stores", "latitude", "longitude"
+)
+X_raw_all <- as.matrix(course_data[, feature_names])
+y_all <- course_data$price
+is_train <- course_data$split == "train"
+X_train_raw <- X_raw_all[is_train, , drop = FALSE]
+y_train <- y_all[is_train]
+X_test_raw <- X_raw_all[!is_train, , drop = FALSE]
+y_test <- y_all[!is_train]
+folds <- course_data$cv_fold[is_train]
+
+fit_ridge <- function(X_raw, y, lambda, X_raw_new = NULL) {
+  n <- nrow(X_raw)
+  p <- ncol(X_raw)
+  x_bar <- colMeans(X_raw)
+  X_centered <- sweep(X_raw, 2, x_bar, "-")
+  s <- sqrt(colMeans(X_centered^2))
+  X <- sweep(X_centered, 2, s, "/")
+
+  y_bar <- mean(y)
+  y_centered <- y - y_bar
+  beta_hat <- solve(
+    crossprod(X) +
+      n * lambda * diag(p),
+    crossprod(X, y_centered)
+  )
+
+  beta_hat_raw <- drop(beta_hat) / s
+  raw_intercept <- y_bar - sum(x_bar * beta_hat_raw)
+  y_hat <- raw_intercept + drop(X_raw %*% beta_hat_raw)
+
+  singular_values <- svd(
+    X,
+    nu = 0,
+    nv = 0
+  )$d
+  df_eff <- 1 + sum(
+    singular_values^2 /
+      (singular_values^2 + n * lambda)
+  )
+
+  y_hat_new <- NULL
+  if (!is.null(X_raw_new)) {
+    y_hat_new <- raw_intercept + drop(X_raw_new %*% beta_hat_raw)
+  }
+
+  list(
+    y_hat = y_hat,
+    y_hat_new = y_hat_new,
+    df_eff = df_eff
+  )
+}
+
+lambda_grid <- c(0, 10^seq(-4, 2, length.out = 121))
+```
+
+```{r}
+#| label: homework-03-q5-selection-r
+#| fig-width: 10.5
+#| fig-height: 4.4
+#| fig-cap: "Training-only penalty selection by ten-fold cross-validation and GCV."
+#| fig-alt: "Two panels show validation MSE with a one-standard-error band and GCV against an axis containing an explicit OLS point followed by log base ten positive lambda. Vertical lines mark selected penalties."
+
+# Preprocess each training fold once, then reuse it for every penalty.
+fold_levels <- sort(unique(folds))
+# Rows are folds; columns are penalties.
+fold_mse <- matrix(
+  NA_real_,
+  nrow = length(fold_levels),
+  ncol = length(lambda_grid)
+)
+
+for (k in seq_along(fold_levels)) {
+  validation <- folds == fold_levels[k]
+  X_fold_train_raw <- X_train_raw[!validation, , drop = FALSE]
+  X_fold_validation_raw <- X_train_raw[validation, , drop = FALSE]
+  y_fold_train <- y_train[!validation]
+  y_fold_validation <- y_train[validation]
+
+  x_bar <- colMeans(X_fold_train_raw)
+  X_centered <- sweep(
+    X_fold_train_raw, 2, x_bar, "-"
+  )
+  s <- sqrt(colMeans(X_centered^2))
+  X <- sweep(
+    X_centered, 2, s, "/"
+  )
+  X_validation <- sweep(
+    X_fold_validation_raw, 2, x_bar, "-"
+  )
+  X_validation <- sweep(
+    X_validation, 2, s, "/"
+  )
+
+  y_bar <- mean(y_fold_train)
+  y_centered <- y_fold_train - y_bar
+  n <- nrow(X)
+  p <- ncol(X)
+  gram <- crossprod(X)
+  rhs <- crossprod(X, y_centered)
+
+  for (l in seq_along(lambda_grid)) {
+    lambda <- lambda_grid[l]
+    beta_hat <- solve(
+      gram + n * lambda * diag(p),
+      rhs
+    )
+    y_hat_validation <- y_bar +
+      drop(X_validation %*% beta_hat)
+    fold_mse[k, l] <- mean(
+      (y_fold_validation - y_hat_validation)^2
+    )
+  }
+}
+
+cv_mean <- colMeans(fold_mse)
+cv_se <- apply(fold_mse, 2, sd) / sqrt(nrow(fold_mse))
+min_index <- which.min(cv_mean)
+lambda_min <- lambda_grid[min_index]
+one_se_limit <- cv_mean[min_index] + cv_se[min_index]
+lambda_1se <- max(lambda_grid[cv_mean <= one_se_limit])
+
+# GCV uses one fixed full-training smoother across the penalty grid.
+x_bar <- colMeans(X_train_raw)
+X_centered <- sweep(X_train_raw, 2, x_bar, "-")
+s <- sqrt(colMeans(X_centered^2))
+X <- sweep(X_centered, 2, s, "/")
+y_bar <- mean(y_train)
+y_centered <- y_train - y_bar
+n <- nrow(X)
+p <- ncol(X)
+gram <- crossprod(X)
+rhs <- crossprod(X, y_centered)
+singular_values <- svd(X, nu = 0, nv = 0)$d
+
+gcv <- df_eff_path <- numeric(length(lambda_grid))
+for (l in seq_along(lambda_grid)) {
+  lambda <- lambda_grid[l]
+  beta_hat <- solve(
+    gram + n * lambda * diag(p),
+    rhs
+  )
+  y_hat <- y_bar + drop(X %*% beta_hat)
+  df_eff_path[l] <- 1 + sum(
+    singular_values^2 /
+      (singular_values^2 + n * lambda)
+  )
+  training_mse <- mean((y_train - y_hat)^2)
+  gcv[l] <- training_mse /
+    (1 - df_eff_path[l] / n)^2
+}
+lambda_gcv <- lambda_grid[which.min(gcv)]
+
+positive <- lambda_grid > 0
+positive_log_lambda <- log10(lambda_grid[positive])
+ols_position <- min(positive_log_lambda) - 0.5
+plot_position <- rep(ols_position, length(lambda_grid))
+plot_position[positive] <- positive_log_lambda
+penalty_position <- function(lambda) {
+  if (lambda == 0) ols_position else log10(lambda)
+}
+axis_ticks <- pretty(range(positive_log_lambda))
+par(mfrow = c(1, 2), mar = c(4.2, 4.3, 1.2, 0.7))
+
+plot(
+  plot_position,
+  cv_mean,
+  type = "n",
+  xaxt = "n",
+  xlab = expression(paste("OLS or ", log[10](lambda))),
+  ylab = "Mean validation MSE",
+  bty = "l"
+)
+axis(
+  1,
+  at = c(ols_position, axis_ticks),
+  labels = c("OLS", axis_ticks)
+)
+polygon(
+  c(plot_position, rev(plot_position)),
+  c(
+    cv_mean - cv_se,
+    rev(cv_mean + cv_se)
+  ),
+  col = adjustcolor("#2F6FB3", alpha.f = 0.16),
+  border = NA
+)
+lines(plot_position, cv_mean, col = "#2F6FB3", lwd = 2)
+abline(
+  v = penalty_position(lambda_min),
+  col = "#C84A16",
+  lty = 2,
+  lwd = 2
+)
+abline(
+  v = penalty_position(lambda_1se),
+  col = "#13294B",
+  lty = 3,
+  lwd = 2
+)
+legend(
+  "topleft",
+  legend = c("Mean MSE and 1 SE", "CV minimum", "One SE"),
+  col = c("#2F6FB3", "#C84A16", "#13294B"),
+  lty = c(1, 2, 3),
+  lwd = 2,
+  bty = "n"
+)
+
+plot(
+  plot_position,
+  gcv,
+  type = "l",
+  col = "#2F6FB3",
+  lwd = 2,
+  xaxt = "n",
+  xlab = expression(paste("OLS or ", log[10](lambda))),
+  ylab = "GCV",
+  bty = "l"
+)
+axis(
+  1,
+  at = c(ols_position, axis_ticks),
+  labels = c("OLS", axis_ticks)
+)
+abline(
+  v = penalty_position(lambda_gcv),
+  col = "#C84A16",
+  lty = 2,
+  lwd = 2
+)
+legend(
+  "topleft",
+  legend = c("GCV", "GCV minimum"),
+  col = c("#2F6FB3", "#C84A16"),
+  lty = c(1, 2),
+  lwd = 2,
+  bty = "n"
+)
+par(mfrow = c(1, 1))
+```
+
+```{r}
+#| label: homework-03-q5-final-r
+
+# Freeze every choice before evaluating the final test responses.
+selected <- data.frame(
+  rule = c("OLS", "CV minimum", "One SE", "GCV"),
+  lambda = c(0, lambda_min, lambda_1se, lambda_gcv)
+)
+selected$df_eff <- NA_real_
+selected$train_mse <- NA_real_
+selected$test_mse <- NA_real_
+
+for (l in seq_len(nrow(selected))) {
+  fit <- fit_ridge(
+    X_train_raw,
+    y_train,
+    selected$lambda[l],
+    X_test_raw
+  )
+  selected$df_eff[l] <- fit$df_eff
+  selected$train_mse[l] <- mean(
+    (y_train - fit$y_hat)^2
+  )
+  selected$test_mse[l] <- mean(
+    (y_test - fit$y_hat_new)^2
+  )
+}
+
+print(c(
+  lambda_min = lambda_min,
+  lambda_1se = lambda_1se,
+  lambda_gcv = lambda_gcv,
+  one_se_limit = one_se_limit
+), digits = 6)
+knitr::kable(
+  selected,
+  digits = c(0, 5, 3, 3, 3),
+  caption = "Final training and test comparison"
+)
+```
+
+#### Python
+
+```{python}
+#| label: homework-03-q5-setup-py
+
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+data_dir = Path("data")
+if not (data_dir / "realestate.csv").exists():
+    data_dir = Path("practice/weeks/week-03/data")
+
+realestate = pd.read_csv(data_dir / "realestate.csv")
+split_folds = pd.read_csv(data_dir / "realestate-split-folds.csv")
+assert realestate["row_id"].is_unique
+assert split_folds["row_id"].is_unique
+course_data = split_folds.merge(
+    realestate,
+    on="row_id",
+    how="left",
+    validate="one_to_one",
+    indicator=True,
+    sort=False,
+)
+assert len(course_data) == len(realestate)
+assert course_data["_merge"].eq("both").all()
+course_data = course_data.drop(columns="_merge")
+
+feature_names = [
+    "date", "age", "distance",
+    "stores", "latitude", "longitude",
+]
+X_raw_all = course_data[feature_names].to_numpy(float)
+y_all = course_data["price"].to_numpy(float)
+is_train = course_data["split"].eq("train").to_numpy()
+X_train_raw = X_raw_all[is_train]
+X_test_raw = X_raw_all[~is_train]
+y_train, y_test = y_all[is_train], y_all[~is_train]
+folds = course_data.loc[is_train, "cv_fold"].to_numpy(int)
+
+
+def fit_ridge(X_raw, y, lam, X_raw_new=None):
+    n, p = X_raw.shape
+    x_bar = X_raw.mean(axis=0)
+    X_centered = X_raw - x_bar
+    s = np.sqrt(np.mean(X_centered**2, axis=0))
+    X = X_centered / s
+
+    y_bar = y.mean()
+    y_centered = y - y_bar
+    beta_hat = np.linalg.solve(
+        X.T @ X
+        + n * lam * np.eye(p),
+        X.T @ y_centered,
+    )
+
+    beta_hat_raw = beta_hat / s
+    raw_intercept = y_bar - x_bar @ beta_hat_raw
+    y_hat = raw_intercept + X_raw @ beta_hat_raw
+
+    singular_values = np.linalg.svd(
+        X,
+        compute_uv=False,
+    )
+    df_eff = 1 + np.sum(
+        singular_values**2
+        / (singular_values**2 + n * lam)
+    )
+    y_hat_new = (
+        None
+        if X_raw_new is None
+        else raw_intercept + X_raw_new @ beta_hat_raw
+    )
+
+    return {
+        "y_hat": y_hat,
+        "y_hat_new": y_hat_new,
+        "df_eff": df_eff,
+    }
+
+
+lambda_grid = np.r_[0.0, 10 ** np.linspace(-4, 2, 121)]
+```
+
+```{python}
+#| label: homework-03-q5-selection-py
+#| fig-width: 10.5
+#| fig-height: 4.4
+#| fig-cap: "Training-only penalty selection by ten-fold cross-validation and GCV."
+#| fig-alt: "Two panels show validation MSE with a one-standard-error band and GCV against an axis containing an explicit OLS point followed by log base ten positive lambda. Vertical lines mark selected penalties."
+
+# Preprocess each training fold once, then reuse it for every penalty.
+fold_levels = np.sort(np.unique(folds))
+# Rows are folds; columns are penalties.
+fold_mse = np.empty((len(fold_levels), len(lambda_grid)))
+
+for k, fold in enumerate(fold_levels):
+    validation = folds == fold
+    X_fold_train_raw = X_train_raw[~validation]
+    X_fold_validation_raw = X_train_raw[validation]
+    y_fold_train = y_train[~validation]
+    y_fold_validation = y_train[validation]
+
+    x_bar = X_fold_train_raw.mean(axis=0)
+    X_centered = X_fold_train_raw - x_bar
+    s = np.sqrt(
+        np.mean(X_centered**2, axis=0)
+    )
+    X = X_centered / s
+    X_validation = (
+        X_fold_validation_raw - x_bar
+    ) / s
+
+    y_bar = y_fold_train.mean()
+    y_centered = y_fold_train - y_bar
+    n, p = X.shape
+    gram = X.T @ X
+    rhs = X.T @ y_centered
+
+    for l, lam in enumerate(lambda_grid):
+        beta_hat = np.linalg.solve(
+            gram + n * lam * np.eye(p),
+            rhs,
+        )
+        y_hat_validation = (
+            y_bar + X_validation @ beta_hat
+        )
+        fold_mse[k, l] = np.mean(
+            (y_fold_validation - y_hat_validation) ** 2
+        )
+
+cv_mean = fold_mse.mean(axis=0)
+cv_se = fold_mse.std(axis=0, ddof=1) / np.sqrt(fold_mse.shape[0])
+min_index = int(np.argmin(cv_mean))
+lambda_min = lambda_grid[min_index]
+one_se_limit = cv_mean[min_index] + cv_se[min_index]
+lambda_1se = lambda_grid[cv_mean <= one_se_limit].max()
+
+# GCV uses one fixed full-training smoother across the penalty grid.
+x_bar = X_train_raw.mean(axis=0)
+X_centered = X_train_raw - x_bar
+s = np.sqrt(np.mean(X_centered**2, axis=0))
+X = X_centered / s
+y_bar = y_train.mean()
+y_centered = y_train - y_bar
+n, p = X.shape
+gram = X.T @ X
+rhs = X.T @ y_centered
+singular_values = np.linalg.svd(X, compute_uv=False)
+
+gcv = np.empty(len(lambda_grid))
+df_eff_path = np.empty(len(lambda_grid))
+for l, lam in enumerate(lambda_grid):
+    beta_hat = np.linalg.solve(
+        gram + n * lam * np.eye(p),
+        rhs,
+    )
+    y_hat = y_bar + X @ beta_hat
+    df_eff_path[l] = 1 + np.sum(
+        singular_values**2
+        / (singular_values**2 + n * lam)
+    )
+    training_mse = np.mean((y_train - y_hat) ** 2)
+    gcv[l] = training_mse / (
+        1 - df_eff_path[l] / n
+    ) ** 2
+lambda_gcv = lambda_grid[int(np.argmin(gcv))]
+
+positive = lambda_grid > 0
+positive_log_lambda = np.log10(lambda_grid[positive])
+ols_position = positive_log_lambda.min() - 0.5
+plot_position = np.full(len(lambda_grid), ols_position)
+plot_position[positive] = positive_log_lambda
+
+
+def penalty_position(lam):
+    return ols_position if lam == 0 else np.log10(lam)
+
+
+fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.4))
+
+axes[0].fill_between(
+    plot_position,
+    cv_mean - cv_se,
+    cv_mean + cv_se,
+    color="#2F6FB3",
+    alpha=0.16,
+)
+axes[0].plot(
+    plot_position,
+    cv_mean,
+    color="#2F6FB3",
+    linewidth=2,
+    label="Mean MSE and 1 SE",
+)
+axes[0].axvline(
+    penalty_position(lambda_min),
+    color="#C84A16",
+    linestyle="--",
+    linewidth=2,
+    label="CV minimum",
+)
+axes[0].axvline(
+    penalty_position(lambda_1se),
+    color="#13294B",
+    linestyle=":",
+    linewidth=2,
+    label="One SE",
+)
+axes[0].set(
+    xlabel=r"OLS or $\log_{10}(\lambda)$",
+    ylabel="Mean validation MSE",
+)
+axes[0].legend(frameon=False)
+
+axes[1].plot(
+    plot_position,
+    gcv,
+    color="#2F6FB3",
+    linewidth=2,
+    label="GCV",
+)
+axes[1].axvline(
+    penalty_position(lambda_gcv),
+    color="#C84A16",
+    linestyle="--",
+    linewidth=2,
+    label="GCV minimum",
+)
+axes[1].set(
+    xlabel=r"OLS or $\log_{10}(\lambda)$",
+    ylabel="GCV",
+)
+axes[1].legend(frameon=False)
+
+for ax in axes:
+    ticks = np.r_[ols_position, np.arange(-4, 3)]
+    labels = ["OLS", "-4", "-3", "-2", "-1", "0", "1", "2"]
+    ax.set_xticks(ticks, labels)
+    ax.spines[["top", "right"]].set_visible(False)
+fig.tight_layout()
+plt.show()
+```
+
+```{python}
+#| label: homework-03-q5-final-py
+
+# Freeze every choice before evaluating the final test responses.
+selected = pd.DataFrame(
+    {
+        "rule": ["OLS", "CV minimum", "One SE", "GCV"],
+        "lambda": [0.0, lambda_min, lambda_1se, lambda_gcv],
+    }
+)
+selected["df_eff"] = np.nan
+selected["train_mse"] = np.nan
+selected["test_mse"] = np.nan
+
+for l, lam in enumerate(selected["lambda"]):
+    fit = fit_ridge(X_train_raw, y_train, lam, X_test_raw)
+    selected.loc[l, "df_eff"] = fit["df_eff"]
+    selected.loc[l, "train_mse"] = np.mean(
+        (y_train - fit["y_hat"]) ** 2
+    )
+    selected.loc[l, "test_mse"] = np.mean(
+        (y_test - fit["y_hat_new"]) ** 2
+    )
+
+print(
+    pd.Series(
+        {
+            "lambda_min": lambda_min,
+            "lambda_1se": lambda_1se,
+            "lambda_gcv": lambda_gcv,
+            "one_se_limit": one_se_limit,
+        }
+    ).round(6)
+)
+print(selected.round(5).to_string(index=False))
+```
+
+:::
+
+The three training-only rules select
+
+$$
+\lambda_{\min}=0.01995,
+\qquad
+\lambda_{\mathrm{1se}}=1.58489,
+\qquad
+\lambda_{\mathrm{GCV}}=0.02818.
+$$
+
+The minimum-CV and GCV choices are close. They retain effective degrees of freedom of approximately $6.77$ and $6.69$, respectively, including the intercept. The one-standard-error rule chooses much stronger regularization and reduces the effective degrees of freedom to about $3.03$. The fold errors vary substantially, so the one-standard-error threshold permits a wide range of penalties.
+
+The final comparison is approximately
+
+| Rule | $\lambda$ | Effective df | Training MSE | Test MSE |
+|---|---:|---:|---:|---:|
+| OLS | 0 | 7.000 | 80.094 | 66.322 |
+| CV minimum | 0.01995 | 6.773 | 80.135 | 66.000 |
+| One SE | 1.58489 | 3.033 | 100.374 | 81.200 |
+| GCV | 0.02818 | 6.689 | 80.171 | 65.903 |
+
+OLS has the smallest training MSE, as expected. The minimum-CV and GCV ridge fits use mild shrinkage and have very similar test errors. The one-standard-error model has much stronger shrinkage and a larger test MSE on this particular test set.
+
+This observed ordering does not invalidate the one-standard-error rule and does not authorize choosing GCV after seeing the test table. The three penalty rules were fixed using training information. The test set supplies one final assessment of those procedures. Selecting the smallest observed test MSE afterward would turn the test set into another validation set and make that minimum too favorable as an estimate of future performance.
+
+GCV is also not an independent test result. It estimates prediction error from the training fit by correcting the training residuals using effective degrees of freedom. Finally, ridge controls coefficient variation within the specified linear model. It does not correct nonlinear structure, omitted variables, or other forms of model misspecification.
+
+## Reference
+
+The real-estate data come from I-Cheng Yeh's [Real Estate Valuation dataset](https://archive.ics.uci.edu/dataset/477/real%2Bestate%2Bvaluation%2Bda) in the UCI Machine Learning Repository. The distributed data retain the original observations and add only the course train-test and fold assignments.
