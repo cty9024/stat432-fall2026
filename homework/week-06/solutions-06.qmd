@@ -1,0 +1,351 @@
+---
+title: "Homework 06 Solutions"
+pagetitle: "Homework 06 Solutions"
+body-classes: "lecture-page practice-page"
+engine: knitr
+knitr:
+  opts_chunk:
+    jupyter_compat: true
+execute:
+  enabled: true
+  cache: false
+  warning: false
+  message: false
+format:
+  html:
+    html-math-method: mathml
+    page-layout: full
+    toc: true
+    toc-location: body
+    toc-title: "On this page"
+    toc-depth: 2
+    code-fold: true
+    code-summary: "Show the solution code"
+    fig-align: center
+---
+
+Use either R or Python and run that language's code blocks in order. The R code generates a random split with seed `432`. The supplied [breast-cancer-split.csv](data/breast-cancer-split.csv) records those same rows for Python, since the two languages do not generate the same split from the same seed. Both solutions therefore use 398 training observations and 171 test observations. Your numerical results can differ if you choose another random split.
+
+## Question 1: Compare KNN and logistic regression
+
+### Original question
+
+Use [breast-cancer.csv](data/breast-cancer.csv), which contains 569 cases from the [Wisconsin Diagnostic Breast Cancer dataset](https://archive.ics.uci.edu/dataset/17/breast%2Bcancer%2Bwisconsin%2Bdiagnostic). Predict `y` (1 for malignant and 0 for benign) using `mean_radius`, `mean_texture`, and `mean_smoothness`.
+
+Set a random seed and randomly split the observations into 70% training and 30% test data. Use the same split for every model. Standardize the predictors using the training means and standard deviations, and apply the same transformations to the test data.
+
+Fit ordinary logistic regression with an intercept and no penalty, and KNN with Euclidean distance, equal neighbor weights, and
+
+$$
+k\in\{5,15,25,35,45\}.
+$$
+
+Using the estimated probabilities for `y = 1` on the test data, plot all six ROC curves in one figure and report their AUC values. Which of the six fitted models do you prefer? Give a brief justification based on your results.
+
+### Solution
+
+We compare the models using their estimated probabilities of malignancy, not class predictions at a single cutoff. For KNN, this probability is the proportion of malignant cases among the $k$ nearest training observations:
+
+$$
+\widehat p(\mathbf x)=\frac{1}{k}\sum_{i\in N_k(\mathbf x)}y_i,
+$$
+
+where $N_k(\mathbf x)$ is the set of those neighbors. Averaging the numeric responses 0 and 1 gives this probability directly.
+
+First split the data, then estimate each predictor's mean and standard deviation from the training observations. Use those same values to standardize both sets. This prevents the test observations from influencing the fitted distance scale.
+
+::: {.panel-tabset .sync-code-panels group="homework-06-language"}
+
+#### R
+
+```{r}
+#| label: hw6-q1-setup-r
+library(FNN)
+library(pROC)
+
+data_dir <- if (file.exists("data/breast-cancer.csv")) {
+  "data"
+} else {
+  "practice/weeks/week-06/data"
+}
+data <- read.csv(file.path(data_dir, "breast-cancer.csv"))
+set.seed(432)
+train_id <- sort(sample(seq_len(nrow(data)), floor(0.7 * nrow(data))))
+train <- data[train_id, ]
+test <- data[-train_id, ]
+predictors <- c("mean_radius", "mean_texture", "mean_smoothness")
+
+x_bar <- colMeans(train[, predictors])
+s <- sapply(train[, predictors], sd)
+X_train <- scale(train[, predictors], center = x_bar, scale = s)
+X_test <- scale(test[, predictors], center = x_bar, scale = s)
+y_train <- train$y
+y_test <- test$y
+```
+
+#### Python
+
+```{python}
+#| label: hw6-q1-setup-python
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import roc_curve, roc_auc_score
+
+data_dir = Path("data")
+if not (data_dir / "breast-cancer.csv").exists():
+    data_dir = Path("practice/weeks/week-06/data")
+data = pd.read_csv(data_dir / "breast-cancer.csv")
+# Use the split generated with seed 432 in the R solution.
+split = pd.read_csv(data_dir / "breast-cancer-split.csv")
+train = data.loc[split["split"].eq("train")]
+test = data.loc[split["split"].eq("test")]
+predictors = ["mean_radius", "mean_texture", "mean_smoothness"]
+
+x_bar = train[predictors].mean()
+s = train[predictors].std(ddof=1)
+X_train = ((train[predictors] - x_bar) / s).to_numpy()
+X_test = ((test[predictors] - x_bar) / s).to_numpy()
+y_train = train["y"].to_numpy()
+y_test = test["y"].to_numpy()
+```
+
+:::
+
+Fit ordinary logistic regression and the five KNN models. In R, `knn.reg` averages the 0/1 responses; in Python, `predict_proba` returns the same neighbor proportions. Logistic regression includes an intercept, and `C=np.inf` removes the penalty in the Python fit.
+
+::: {.panel-tabset .sync-code-panels group="homework-06-language"}
+
+#### R
+
+```{r}
+#| label: hw6-q1-fit-r
+fit <- glm(y ~ ., data = data.frame(y = y_train, X_train),
+           family = binomial())
+k_values <- c(5, 15, 25, 35, 45)
+model_names <- c("Logistic regression", paste("KNN, k =", k_values))
+p_test <- matrix(NA_real_, nrow(X_test), length(model_names))
+p_test[, 1] <- predict(fit, newdata = data.frame(X_test), type = "response")
+for (m in seq_along(k_values)) {
+  p_test[, m + 1] <- knn.reg(train = X_train, test = X_test,
+                            y = y_train, k = k_values[m],
+                            algorithm = "brute")$pred
+}
+
+roc_test <- vector("list", length(model_names))
+auc_test <- numeric(length(model_names))
+for (m in seq_along(model_names)) {
+  roc_test[[m]] <- roc(y_test, p_test[, m], levels = c(0, 1),
+                       direction = "<", quiet = TRUE)
+  auc_test[m] <- as.numeric(auc(roc_test[[m]]))
+}
+data.frame(Model = model_names, Test_AUC = round(auc_test, 4))
+```
+
+```{r}
+#| label: hw6-q1-roc-r
+#| fig-width: 6.5
+#| fig-height: 6
+#| fig-cap: "Test ROC curves for logistic regression and five KNN fits on the same 171 observations."
+#| fig-alt: "Six test ROC curves, with their AUC values in the legend, compared on common false-positive and true-positive rate axes."
+colors <- c("#222222", "#0072B2", "#D55E00", "#009E73", "#CC79A7", "#806000")
+line_types <- c(1, 2, 3, 4, 5, 6)
+plot(c(0, 1), c(0, 1), type = "n", xaxs = "i", yaxs = "i",
+     xlab = "False-positive rate", ylab = "True-positive rate")
+abline(0, 1, col = "gray70", lty = 2)
+for (m in seq_along(model_names)) {
+  lines(1 - roc_test[[m]]$specificities, roc_test[[m]]$sensitivities,
+        col = colors[m], lty = line_types[m], lwd = 2)
+}
+legend("bottomright", sprintf("%s: AUC = %.4f", model_names, auc_test),
+       col = colors, lty = line_types, lwd = 2, cex = 0.8, bty = "n")
+```
+
+#### Python
+
+```{python}
+#| label: hw6-q1-fit-python
+fit = LogisticRegression(C=np.inf, solver="lbfgs", fit_intercept=True,
+                         tol=1e-10, max_iter=1000)
+fit.fit(X_train, y_train)
+k_values = [5, 15, 25, 35, 45]
+model_names = ["Logistic regression"] + [f"KNN, k = {k}" for k in k_values]
+p_test = np.empty((len(y_test), len(model_names)))
+p_test[:, 0] = fit.predict_proba(X_test)[:, 1]
+for m, k in enumerate(k_values):
+    knn_fit = KNeighborsClassifier(n_neighbors=k, weights="uniform",
+                                   metric="euclidean", algorithm="brute")
+    knn_fit.fit(X_train, y_train)
+    p_test[:, m + 1] = knn_fit.predict_proba(X_test)[:, 1]
+
+auc_test = [roc_auc_score(y_test, p_test[:, m])
+            for m in range(len(model_names))]
+print(pd.DataFrame({"Model": model_names, "Test AUC": auc_test})
+      .round(4).to_string(index=False))
+```
+
+```{python}
+#| label: hw6-q1-roc-python
+#| fig-width: 6.5
+#| fig-height: 6
+#| fig-cap: "Test ROC curves for logistic regression and five KNN fits on the same 171 observations."
+#| fig-alt: "Six test ROC curves, with their AUC values in the legend, compared on common false-positive and true-positive rate axes."
+colors = ["#222222", "#0072B2", "#D55E00", "#009E73", "#CC79A7", "#806000"]
+line_styles = ["-", "--", ":", "-.", (0, (5, 2, 1, 2)), (0, (3, 2, 1, 2, 1, 2))]
+fig, ax = plt.subplots(figsize=(6.5, 6))
+ax.plot([0, 1], [0, 1], color="0.7", linestyle="--")
+for m, name in enumerate(model_names):
+    fpr, tpr, _ = roc_curve(y_test, p_test[:, m])
+    ax.plot(fpr, tpr, color=colors[m], linestyle=line_styles[m], linewidth=2,
+            label=f"{name}: AUC = {auc_test[m]:.4f}")
+ax.set(xlim=(0, 1), ylim=(0, 1),
+       xlabel="False-positive rate", ylabel="True-positive rate")
+ax.legend(loc="lower right", frameon=False, fontsize=9)
+fig.tight_layout()
+plt.show()
+```
+
+:::
+
+For this split, I prefer logistic regression. Its test AUC is $0.9746$, the largest of the six values, and it gives a simple fitted model. KNN with $k=45$ is nearly tied at $0.9741$, followed by $k=35$ at $0.9727$. The smaller neighborhoods have lower test AUCs: $0.9329$, $0.9480$, and $0.9599$ for $k=5,15,25$, respectively. The ROC curves show that the larger neighborhoods rank these test cases more effectively than $k=5$ does.
+
+This is a comparison on one test split. A small AUC difference does not establish that one method is always better, and AUC measures ranking rather than the fraction of correct class predictions. For a final model-selection exercise, choose the method and $k$ using validation or cross-validation within the training data, then evaluate the chosen model on a fresh test set.
+
+## Question 2: Training and test ROC curves
+
+### Original question
+
+Use the same data, training/test split, and standardization as in Question 1. Fit KNN with Euclidean distance, equal neighbor weights, and
+
+$$
+k\in\{1,3,5,10,20\}.
+$$
+
+Use each fitted model to estimate probabilities for both the training and test observations. For training predictions, include each observation itself among its $k$ nearest neighbors.
+
+For each $k$, use a separate panel to show the training and test ROC curves together. Report both AUC values.
+
+Explain the difference between training and test performance and how it changes with $k$. In particular, explain what happens at $k=1$ and why training performance may not reflect performance on new observations.
+
+### Solution
+
+At $k=1$, each training observation is its own nearest neighbor. Thus its fitted probability equals its observed response, giving a training AUC of 1. This perfect training ranking does not establish good prediction for a new observation, whose label was not used in fitting.
+
+Reuse the data split and standardization from Question 1. In particular, supply the training predictors explicitly when requesting training predictions so that each observation can be its own neighbor.
+
+::: {.panel-tabset .sync-code-panels group="homework-06-language"}
+
+#### R
+
+```{r}
+#| label: hw6-q2-fit-r
+k_values <- c(1, 3, 5, 10, 20)
+p_train <- matrix(NA_real_, nrow(X_train), length(k_values))
+p_test <- matrix(NA_real_, nrow(X_test), length(k_values))
+roc_train <- roc_test <- vector("list", length(k_values))
+auc_train <- auc_test <- numeric(length(k_values))
+for (m in seq_along(k_values)) {
+  k <- k_values[m]
+  # test = X_train includes each training observation itself.
+  p_train[, m] <- knn.reg(train = X_train, test = X_train,
+                          y = y_train, k = k, algorithm = "brute")$pred
+  p_test[, m] <- knn.reg(train = X_train, test = X_test,
+                         y = y_train, k = k, algorithm = "brute")$pred
+  roc_train[[m]] <- roc(y_train, p_train[, m], levels = c(0, 1),
+                        direction = "<", quiet = TRUE)
+  roc_test[[m]] <- roc(y_test, p_test[, m], levels = c(0, 1),
+                       direction = "<", quiet = TRUE)
+  auc_train[m] <- as.numeric(auc(roc_train[[m]]))
+  auc_test[m] <- as.numeric(auc(roc_test[[m]]))
+}
+data.frame(k = k_values, Training_AUC = round(auc_train, 4),
+           Test_AUC = round(auc_test, 4))
+```
+
+```{r}
+#| label: hw6-q2-roc-r
+#| fig-width: 10
+#| fig-height: 7
+#| fig-cap: "Training and test ROC curves for each KNN neighborhood size. Each training observation is included among its own neighbors."
+#| fig-alt: "Five panels compare training and test ROC curves for k equal to 1, 3, 5, 10, and 20. The k equals 1 training curve has AUC 1."
+old_par <- par(mfrow = c(2, 3), mar = c(4, 4, 2, 1))
+for (m in seq_along(k_values)) {
+  plot(1 - roc_train[[m]]$specificities, roc_train[[m]]$sensitivities,
+       type = "l", col = "#0072B2", lwd = 2,
+       xlim = c(0, 1), ylim = c(0, 1), xaxs = "i", yaxs = "i",
+       main = paste("k =", k_values[m]),
+       xlab = "False-positive rate", ylab = "True-positive rate")
+  lines(1 - roc_test[[m]]$specificities, roc_test[[m]]$sensitivities,
+        col = "#D55E00", lty = 2, lwd = 2)
+  abline(0, 1, col = "gray70", lty = 3)
+  legend("bottomright", c(sprintf("Training AUC = %.4f", auc_train[m]),
+                          sprintf("Test AUC = %.4f", auc_test[m])),
+         col = c("#0072B2", "#D55E00"), lty = c(1, 2), lwd = 2,
+         cex = 0.8, bty = "n")
+}
+plot.new()
+par(old_par)
+```
+
+#### Python
+
+```{python}
+#| label: hw6-q2-fit-python
+k_values = [1, 3, 5, 10, 20]
+p_train = np.empty((len(y_train), len(k_values)))
+p_test = np.empty((len(y_test), len(k_values)))
+auc_train = np.empty(len(k_values))
+auc_test = np.empty(len(k_values))
+for m, k in enumerate(k_values):
+    knn_fit = KNeighborsClassifier(n_neighbors=k, weights="uniform",
+                                   metric="euclidean", algorithm="brute")
+    knn_fit.fit(X_train, y_train)
+    # Passing X_train explicitly includes each observation itself.
+    p_train[:, m] = knn_fit.predict_proba(X_train)[:, 1]
+    p_test[:, m] = knn_fit.predict_proba(X_test)[:, 1]
+    auc_train[m] = roc_auc_score(y_train, p_train[:, m])
+    auc_test[m] = roc_auc_score(y_test, p_test[:, m])
+print(pd.DataFrame({"k": k_values, "Training AUC": auc_train,
+                    "Test AUC": auc_test}).round(4).to_string(index=False))
+```
+
+```{python}
+#| label: hw6-q2-roc-python
+#| fig-width: 10
+#| fig-height: 7
+#| fig-cap: "Training and test ROC curves for each KNN neighborhood size. Each training observation is included among its own neighbors."
+#| fig-alt: "Five panels compare training and test ROC curves for k equal to 1, 3, 5, 10, and 20. The k equals 1 training curve has AUC 1."
+fig, axes = plt.subplots(2, 3, figsize=(10, 7))
+for m, k in enumerate(k_values):
+    ax = axes.flat[m]
+    fpr, tpr, _ = roc_curve(y_train, p_train[:, m])
+    ax.plot(fpr, tpr, color="#0072B2", linewidth=2,
+            label=f"Training AUC = {auc_train[m]:.4f}")
+    fpr, tpr, _ = roc_curve(y_test, p_test[:, m])
+    ax.plot(fpr, tpr, color="#D55E00", linestyle="--", linewidth=2,
+            label=f"Test AUC = {auc_test[m]:.4f}")
+    ax.plot([0, 1], [0, 1], color="0.7", linestyle=":")
+    ax.set(title=f"k = {k}", xlim=(0, 1), ylim=(0, 1),
+           xlabel="False-positive rate", ylabel="True-positive rate")
+    ax.legend(loc="lower right", frameon=False, fontsize=8)
+axes.flat[-1].set_visible(False)
+fig.tight_layout()
+plt.show()
+```
+
+:::
+
+The training AUC is $1.0000$ at $k=1$, whereas the test AUC is only $0.8764$. As $k$ increases through $3,5,10,20$, test AUC rises to $0.9138$, $0.9329$, $0.9446$, and $0.9586$. The training-test gap shrinks from about $0.124$ at $k=1$ to $0.029$ at $k=20$.
+
+Training AUC does not decrease at every step: it falls to $0.9847$ at $k=5$, then rises to $0.9862$ at $k=10$ and $0.9880$ at $k=20$. Although larger neighborhoods smooth the fitted probabilities, their ranking can improve on both sets. The important pattern here is the overly optimistic training performance for very small $k$, especially $k=1$.
+
+Increasing $k$ reduces the influence of any one training label. It often reduces the optimism of training performance and makes the estimated probabilities less variable. If $k$ becomes too large, however, averaging over distant observations can miss local structure. Neither test AUC nor the training-test gap must change monotonically on a particular split.
+
+For 1NN, the estimated probabilities take only the values 0 and 1. Its test ROC curve therefore has one nontrivial point, and its AUC equals $(\text{sensitivity}+\text{specificity})/2$. The perfect training AUC is a consequence of reusing each observation's own label; the test curve evaluates predictions for observations outside the training set.
+
+## Question 3: Peer evaluation of Homework 5
+
+No solution is provided for this peer-evaluation question.

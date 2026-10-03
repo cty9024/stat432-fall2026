@@ -1,0 +1,230 @@
+---
+title: "Homework 06"
+pagetitle: "Homework 06"
+body-classes: "lecture-page practice-page"
+format:
+  html:
+    embed-resources: true
+    html-math-method: mathml
+    page-layout: full
+    toc: true
+    toc-location: body
+    toc-title: "On this page"
+    toc-depth: 2
+---
+
+## Question 1: Compare KNN and logistic regression
+
+Use [breast-cancer.csv](data/breast-cancer.csv), which contains 569 cases from the [Wisconsin Diagnostic Breast Cancer dataset](https://archive.ics.uci.edu/dataset/17/breast%2Bcancer%2Bwisconsin%2Bdiagnostic). Predict `y` (1 for malignant and 0 for benign) using `mean_radius`, `mean_texture`, and `mean_smoothness`.
+
+Set a random seed and randomly split the observations into 70% training and 30% test data. Use the same split for every model. Standardize the predictors using the training means and standard deviations, and apply the same transformations to the test data.
+
+Fit ordinary logistic regression with an intercept and no penalty, and KNN with Euclidean distance, equal neighbor weights, and
+
+$$
+k\in\{5,15,25,35,45\}.
+$$
+
+Using the estimated probabilities for `y = 1` on the test data, plot all six ROC curves in one figure and report their AUC values. Which of the six fitted models do you prefer? Give a brief justification based on your results.
+
+### Solution
+```{python}
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import roc_curve, roc_auc_score
+
+# Read data
+df = pd.read_csv("data/breast-cancer.csv")
+
+X = df[["mean_radius", "mean_texture", "mean_smoothness"]]
+y = df["y"]
+
+# 70/30 train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.30,
+    random_state=432
+)
+
+# Standardize using TRAINING data only
+scaler = StandardScaler()
+
+X_train_std = scaler.fit_transform(X_train)
+X_test_std = scaler.transform(X_test)
+
+# Store predicted probabilities
+predictions = {}
+
+# Logistic regression: intercept, no penalty
+logistic = LogisticRegression(
+    penalty=None,
+    max_iter=10000
+)
+
+logistic.fit(X_train_std, y_train)
+
+predictions["Logistic"] = logistic.predict_proba(X_test_std)[:, 1]
+
+# KNN
+for k in [5, 15, 25, 35, 45]:
+
+    knn = KNeighborsClassifier(
+        n_neighbors=k,
+        weights="uniform",
+        metric="euclidean"
+    )
+
+    knn.fit(X_train_std, y_train)
+
+    predictions[f"KNN k={k}"] = knn.predict_proba(X_test_std)[:, 1]
+
+plt.figure(figsize=(8, 6))
+
+auc_values = {}
+
+for name, probs in predictions.items():
+
+    fpr, tpr, thresholds = roc_curve(y_test, probs)
+
+    auc = roc_auc_score(y_test, probs)
+    auc_values[name] = auc
+
+    plt.plot(
+        fpr,
+        tpr,
+        label=f"{name}: AUC = {auc:.3f}"
+    )
+
+# Random classifier reference
+plt.plot(
+    [0, 1],
+    [0, 1],
+    linestyle="--"
+)
+
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("ROC Curves: Logistic Regression vs KNN")
+plt.legend()
+plt.show()
+
+for name, auc in auc_values.items():
+    print(f"{name}: {auc:.3f}")
+```
+
+I prefer logistic regression because it has the highest test AUC among the six fitted models. The KNN models with larger values of $k$ perform very similarly to logistic regression, so the difference is small. However, based on the test AUC, logistic regression provides the best discrimination between malignant and benign cases on this test set.
+
+## Question 2: Training and test ROC curves
+
+Use the same data, training/test split, and standardization as in Question 1. Fit KNN with Euclidean distance, equal neighbor weights, and
+
+$$
+k\in\{1,3,5,10,20\}.
+$$
+
+Use each fitted model to estimate probabilities for both the training and test observations. For training predictions, include each observation itself among its $k$ nearest neighbors.
+
+For each $k$, use a separate panel to show the training and test ROC curves together. Report both AUC values.
+
+Explain the difference between training and test performance and how it changes with $k$. In particular, explain what happens at $k=1$ and why training performance may not reflect performance on new observations.
+
+### Solution
+```{python}
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import roc_curve, roc_auc_score
+import matplotlib.pyplot as plt
+
+k_values = [1, 3, 5, 10, 20]
+
+fig, axes = plt.subplots(1, 5, figsize=(20, 4))
+
+for ax, k in zip(axes, k_values):
+
+    # Fit KNN
+    knn = KNeighborsClassifier(
+        n_neighbors=k,
+        weights="uniform",
+        metric="euclidean"
+    )
+
+    knn.fit(X_train_std, y_train)
+
+    # Predicted probabilities
+    train_probs = knn.predict_proba(X_train_std)[:, 1]
+    test_probs = knn.predict_proba(X_test_std)[:, 1]
+
+    # ROC curves
+    train_fpr, train_tpr, _ = roc_curve(y_train, train_probs)
+    test_fpr, test_tpr, _ = roc_curve(y_test, test_probs)
+
+    # AUC
+    train_auc = roc_auc_score(y_train, train_probs)
+    test_auc = roc_auc_score(y_test, test_probs)
+
+    # Plot
+    ax.plot(
+        train_fpr,
+        train_tpr,
+        label=f"Train AUC = {train_auc:.3f}"
+    )
+
+    ax.plot(
+        test_fpr,
+        test_tpr,
+        label=f"Test AUC = {test_auc:.3f}"
+    )
+
+    ax.plot(
+        [0, 1],
+        [0, 1],
+        linestyle="--"
+    )
+
+    ax.set_title(f"k = {k}")
+    ax.set_xlabel("False Positive Rate")
+    ax.set_ylabel("True Positive Rate")
+    ax.legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+Training performance is better than test performance for small values of $k$, and the gap decreases as $k$ increases. At $k=1$, each training observation is its own nearest neighbor, so the training AUC is 1. However, the test performance is much worse, indicating overfitting.
+
+As $k$ increases, the model becomes smoother and less flexible. The training AUC decreases slightly, while the test AUC improves. By $k=20$, the training and test ROC curves are very similar, suggesting better generalization. This pattern reflects the bias--variance tradeoff: small $k$ has low bias and high variance, while larger $k$ reduces variance but increases bias.
+
+## Question 3: Peer evaluation of Homework 5
+
+You will receive two Homework 5 submissions to review. The instructor's GitHub account, **rqzhu-aide**, will open a **GitHub Issue** in the repository containing your Homework 5 submission. It will contain links to two other students' repositories, where you can find their submitted homework reports.
+
+Open your repository's **Issues** tab on GitHub to find the assignment. You may ask AI to explain GitHub Issues or help you locate the assignment.
+
+Choose **one specific mistake or item for improvement** from any question in either report.
+
+1. **Identify the mistake or item for improvement.** State which report and question you selected, and briefly describe what is wrong or could be improved. Examples include incorrect code, a calculation error, a misinterpretation of results, a plot that could communicate the findings more clearly, or anything else you think could be done better.
+
+2. **Explain your assessment.** Quote the relevant text, code, or figure caption exactly. Explain why the selected answer is incorrect or how it could be improved, referring to its reasoning, calculations, code, figures, or interpretation. **Complete this part yourself, without AI assistance.**
+
+3. **Provide a correction.** Write a corrected or improved answer to the selected question, including any calculations, code, or figures needed.
+
+After completing your review, **open a GitHub Issue in the repository containing the report you selected**. Identify the report and question, and include your assessment and a detailed revision plan explaining what the author should change and why. Include a link to your posted GitHub Issue in your Homework 6 answer.
+
+### Solution
+````markdown
+Homework 5, Question 5
+
+The final SKILL.md content is not rendered as a code block in the submitted report. Instead, parts of the Markdown are interpreted as headings and regular document content.
+
+"````markdown"
+
+"# STAT 432 Plot Formatting"
+
+There are no major issues such as statistical or calculation errors in this homework, but I think the reader's experience would be better if the formatting were changed. I noticed that there are four backticks before "markdown", so my suggestion is to add the matching closing backticks after the SKILL.md content so that the whole section is rendered as one code block.
+````
+GitHub Issue: https://github.com/gaoxinc2/stat432-fall2026/issues/2
