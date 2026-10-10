@@ -1,0 +1,149 @@
+---
+title: "Homework 07 Solutions"
+pagetitle: "Homework 07 Solutions"
+body-classes: "lecture-page practice-page"
+format:
+  html:
+    html-math-method: mathml
+    page-layout: full
+    toc: true
+    toc-location: body
+    toc-title: "On this page"
+    toc-depth: 2
+    code-fold: true
+    code-summary: "Show the solution code"
+---
+
+## Question 1: LDA
+
+### Original question
+
+Let's start by estimating the components of LDA. From the lecture notes, for each target point $\mathbf{x}_0$, we find the class label $k$ with the largest score
+
+$$
+\mathbf{x}_0^{\mathsf T}\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_k
+-\frac12\boldsymbol{\mu}_k^{\mathsf T}\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_k
++\log\pi_k.
+$$
+
+Thus, we need to estimate:
+
+- the prior probabilities $\pi_k$;
+- the mean vector (centroid) $\boldsymbol{\mu}_k$ for each class; and
+- the pooled covariance matrix $\boldsymbol{\Sigma}$.
+
+Use [saheart.csv](data/saheart.csv), the `SAheart` data from `ElemStatLearn`. The two classes are defined by `chd`, the coronary heart disease indicator. Use all nine other variables as numerical predictors, coding `famhist` as 1 for `Absent` and 2 for `Present`. The following code constructs an $n\times9$ predictor matrix $\mathbf{X}$ and an $n$-entry response vector $\mathbf{y}$, where $n$ is the number of observations.
+
+::: {.panel-tabset .sync-code-panels group="language"}
+### R
+
+```r
+heart <- read.csv("data/saheart.csv")
+heart$famhist <- factor(heart$famhist, levels = c("Absent", "Present"))
+X <- data.matrix(heart[, names(heart) != "chd"])
+y <- heart$chd
+```
+
+### Python
+
+```python
+import pandas as pd
+
+heart = pd.read_csv("data/saheart.csv")
+heart["famhist"] = heart["famhist"].map({"Absent": 1, "Present": 2})
+X = heart.drop(columns="chd").to_numpy()
+y = heart["chd"].to_numpy()
+```
+:::
+
+a. Calculate the prior probabilities, class means, and pooled covariance matrix from these data. Use the pooled covariance denominator $n-K$ from the lecture, where $K=2$ is the number of classes.
+
+b. Use your estimated values to predict the label of each observation in the training data. These are in-sample fitted labels. Provide the confusion matrix, with observed classes in rows and predicted classes in columns. Check that the dimensions of your matrices and vectors match. Calculate the scores yourself for this part.
+
+c. Perform the same LDA analysis using `MASS::lda` in R or `LinearDiscriminantAnalysis(solver="svd")` in Python, using the same numerical predictors and empirical class priors. Provide the confusion matrix. Do the results match?
+
+### Solution
+
+To be added.
+
+## Question 2: QDA and marginal screening
+
+### Original question
+
+In the lecture, ordinary QDA could not be fitted to the handwritten digit sample because its within-class covariance matrices were singular. Let's consider selecting fewer variables and see whether this helps. For this question, use the full [zip-train.csv.gz](data/zip-train.csv.gz) as the training data and [zip-test.csv.gz](data/zip-test.csv.gz) as the test data, with all ten digit classes. These are the original `zip.train` and `zip.test` data from `ElemStatLearn`. Each file has no header: the first column is the digit label and the remaining 256 columns are pixel values.
+
+Instead of using all 256 predictors, select the 40 with the largest marginal variances in the training data. Here, marginal variance means the variance of one pixel across all training observations. Use the original pixel values without standardizing them, and retain the same selected predictors in the test data.
+
+Use `MASS::qda` in R or `QuadraticDiscriminantAnalysis(tol=1e-8)` in Python.
+
+a. Fit QDA using these 40 predictors and report the test confusion matrix, with observed classes in rows and predicted classes in columns. Also report the test misclassification rate.
+
+b. Does the method work? Why do you think it works or does not work?
+
+c. Repeat the analysis using the 10 predictors with the largest marginal variances in the training data. How does the test misclassification rate compare with the 40-predictor version? Why do you think this happens?
+
+### Solution
+
+To be added.
+
+## Question 3: Compare LDA and QDA
+
+### Original question
+
+In this simulation, we will study how the relative performance of LDA and QDA changes with the true covariance structure. The parameter $\rho$ controls the distribution from which we generate the data; it is not a tuning parameter of LDA or QDA.
+
+Consider a classification problem with two equally likely classes, labeled 1 and 2, and $p=10$ covariates. The first two covariates have the class-conditional distributions
+
+$$
+\begin{pmatrix}X_1\\X_2\end{pmatrix}\mid Y=1
+\sim N_2\left(
+\begin{pmatrix}-1\\0\end{pmatrix},
+\begin{pmatrix}1&\rho\\\rho&1\end{pmatrix}
+\right),
+$$
+
+$$
+\begin{pmatrix}X_1\\X_2\end{pmatrix}\mid Y=2
+\sim N_2\left(
+\begin{pmatrix}1\\0\end{pmatrix},
+\begin{pmatrix}1&-\rho\\-\rho&1\end{pmatrix}
+\right).
+$$
+
+In both classes, the remaining eight covariates are independent standard normal variables, independent of the first two. Consider
+
+$$
+\rho\in\{0,0.2,0.4,0.6,0.8,0.9\}.
+$$
+
+For each value of $\rho$, generate 100 training observations and 1,000 independent test observations from each class. Fit ordinary LDA and QDA using all 10 covariates and equal class priors. Estimate the class means from the training data, with one pooled covariance matrix for LDA and one full covariance matrix per class for QDA. Set a random seed and report it.
+
+a. Generate one dataset for each value of $\rho$. Fit both methods and calculate their test misclassification rates. Within each setting, use the same training and test observations for the two methods.
+
+b. At each fixed value of $\rho$, repeat the experiment 50 times, generating new training and test observations in each repetition. Plot average test error against $\rho$ in one figure, with one curve for LDA and one for QDA. These curves compare performance across different data-generating distributions.
+
+c. Compare the two methods at small and large values of $\rho$. How does changing the true covariance structure affect their relative performance? Explain the pattern using their covariance assumptions and the bias-variance trade-off. How can the eight noise covariates affect performance even though they contain no information about the class label?
+
+### Solution
+
+To be added.
+
+## Question 4: Create and use an LDA/QDA analysis skill
+
+### Original question
+
+In Homework 5, you created a skill for formatting plots. Now create a reusable skill that guides an AI agent through an LDA/QDA analysis and produces a concise statistical report. You may work with AI to design and write the skill; you do not need to write every line yourself.
+
+a. **Define the skill.** Write a single `SKILL.md` file no larger than **5 KB (5,000 bytes)**. Define the agent's behavior, analysis guidelines, and expected report structure. Keep the skill independent of this question: provide the dataset, response, and predictors separately when invoking it. The skill may guide the agent to explore lower-dimensional representations, such as principal component analysis (PCA), or to blend the class probabilities predicted by LDA and QDA. Keep all classifiers based on LDA, QDA, or their combination. Configure the skill to load **only when you explicitly invoke it**. Use your AI tool's invocation settings, or keep the file outside automatically loaded skill folders and supply it only in an explicit request.
+
+Your skill must require a clearly readable analysis report of **at most one printed page**, containing a figure, a table, and numerical model-fitting results. You may specify the type and style of figures and tables you want the AI to produce. All instructions in the skill must be independent of the actual dataset, its variable names, and its observed results. The report should briefly describe the candidate models, the cross-validation procedure and results, the selected model, and its estimated prediction error. It should explain the main findings and any limitations.
+
+b. **Apply the skill.** Explicitly invoke your skill to analyze the `SAheart` data from Question 1, using the same response and predictor coding. Ask the agent to seek the best predictive performance within the LDA/QDA methods allowed by your skill. Include ordinary LDA and QDA as comparisons; the extensions above are optional. Reserve a test set before choosing models. Use the same cross-validation folds within the training data to compare candidates and select any settings. Estimate any preprocessing, including an embedding, using only the training observations in each fold. Refit the selected model and preprocessing on all training observations, then evaluate the fitted classifier once on the reserved test set. Use misclassification rate to compare performance, and report your random seed.
+
+c. **Review and submit.** Check the agent's analysis and make any skill revisions using only training and cross-validation results. Append the final one-page analysis report and the complete contents of your `SKILL.md` to your homework report. State the file size and briefly explain how you enabled explicit invocation, including the prompt used to apply the skill. The one-page limit applies to the analysis report; the appended skill and this explanation are outside that limit.
+
+Your skill and analysis report will be reviewed and graded by other students through peer evaluation.
+
+### Solution
+
+No solution can be provided for Question 4.

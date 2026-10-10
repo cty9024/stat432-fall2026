@@ -1,0 +1,678 @@
+---
+title: "Homework 07"
+pagetitle: "Homework 07"
+body-classes: "lecture-page practice-page"
+format:
+  html:
+    embed-resources: true
+    html-math-method: mathml
+    page-layout: full
+    toc: true
+    toc-location: body
+    toc-title: "On this page"
+    toc-depth: 2
+    code-fold: true
+    code-summary: "Show Code"
+---
+
+Use either R or Python.
+
+## Question 1: LDA
+
+Let's start by estimating the components of LDA. From the lecture notes, for each target point $\mathbf{x}_0$, we find the class label $k$ with the largest score
+
+$$
+\mathbf{x}_0^{\mathsf T}\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_k
+-\frac12\boldsymbol{\mu}_k^{\mathsf T}\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_k
++\log\pi_k.
+$$
+
+Thus, we need to estimate:
+
+- the prior probabilities $\pi_k$;
+- the mean vector (centroid) $\boldsymbol{\mu}_k$ for each class; and
+- the pooled covariance matrix $\boldsymbol{\Sigma}$.
+
+Use [saheart.csv](data/saheart.csv), the `SAheart` data from `ElemStatLearn`. The two classes are defined by `chd`, the coronary heart disease indicator. Use all nine other variables as numerical predictors, coding `famhist` as 1 for `Absent` and 2 for `Present`. The following code constructs an $n\times9$ predictor matrix $\mathbf{X}$ and an $n$-entry response vector $\mathbf{y}$, where $n$ is the number of observations.
+
+::: {.panel-tabset .sync-code-panels group="language"}
+### R
+
+```r
+heart <- read.csv("data/saheart.csv")
+heart$famhist <- factor(heart$famhist, levels = c("Absent", "Present"))
+X <- data.matrix(heart[, names(heart) != "chd"])
+y <- heart$chd
+```
+
+### Python
+
+```python
+import pandas as pd
+
+heart = pd.read_csv("data/saheart.csv")
+heart["famhist"] = heart["famhist"].map({"Absent": 1, "Present": 2})
+X = heart.drop(columns="chd").to_numpy()
+y = heart["chd"].to_numpy()
+```
+:::
+
+a. Calculate the prior probabilities, class means, and pooled covariance matrix from these data. Use the pooled covariance denominator $n-K$ from the lecture, where $K=2$ is the number of classes.
+
+### Solution
+```{python}
+import numpy as np
+import pandas as pd
+
+heart = pd.read_csv("data/saheart.csv")
+heart["famhist"] = heart["famhist"].map({
+    "Absent": 1,
+    "Present": 2
+})
+
+X = heart.drop(columns="chd").to_numpy()
+y = heart["chd"].to_numpy()
+
+classes = np.sort(np.unique(y))
+
+n, p = X.shape
+K = len(classes)
+
+# Prior probabilities
+counts = np.array([(y == k).sum() for k in classes])
+priors = counts / n
+
+# Class means
+means = np.vstack([
+    X[y == k].mean(axis=0)
+    for k in classes
+])
+
+# Pooled covariance matrix
+scatter = np.zeros((p, p))
+
+for j, k in enumerate(classes):
+    Xk = X[y == k]
+    centered = Xk - means[j]
+    scatter += centered.T @ centered
+
+Sigma = scatter / (n - K)
+
+print("X shape:", X.shape)
+print("y shape:", y.shape)
+print("Class counts:", counts)
+print("Priors:", priors)
+print("Means shape:", means.shape)
+print("Class means:")
+print(means)
+print("Sigma shape:", Sigma.shape)
+#print("Pooled covariance:")
+#print(Sigma)
+```
+
+The estimated prior probabilities are $\hat{\pi}_0 = 0.6537$ and $\hat{\pi}_1 = 0.3463$. The class mean matrix has dimensions $2 \times 9$, with one mean vector for each class. The pooled covariance matrix has dimensions $9 \times 9$, calculated using the denominator $n-K = 462-2 = 460$.
+
+b. Use your estimated values to predict the label of each observation in the training data. These are in-sample fitted labels. Provide the confusion matrix, with observed classes in rows and predicted classes in columns. Check that the dimensions of your matrices and vectors match. Calculate the scores yourself for this part.
+
+### Solution
+```{python}
+Sigma_inv = np.linalg.inv(Sigma)
+
+scores = np.zeros((n, K))
+
+for i in range(n):
+    x = X[i]
+
+    for j, k in enumerate(classes):
+        mu = means[j]
+        pi = priors[j]
+
+        scores[i, j] = (
+            x @ Sigma_inv @ mu
+            - 0.5 * mu @ Sigma_inv @ mu
+            + np.log(pi)
+        )
+
+pred_manual = classes[np.argmax(scores, axis=1)]
+
+from sklearn.metrics import confusion_matrix
+
+cm_manual = confusion_matrix(
+    y,
+    pred_manual,
+    labels=classes
+)
+
+cm_manual_df = pd.DataFrame(
+    cm_manual,
+    index=["Observed 0", "Observed 1"],
+    columns=["Predicted 0", "Predicted 1"]
+)
+
+print("X:", X.shape)
+print("means:", means.shape)
+print("Sigma:", Sigma.shape)
+print("Sigma inverse:", Sigma_inv.shape)
+print("scores:", scores.shape)
+print("predictions:", pred_manual.shape)
+
+cm_manual_df
+```
+
+The LDA discriminant scores were calculated manually using
+
+$$
+\delta_k(x_i) =
+x_i^T\hat{\Sigma}^{-1}\hat{\mu}_k
+-\frac{1}{2}\hat{\mu}_k^T\hat{\Sigma}^{-1}\hat{\mu}_k
++\log\hat{\pi}_k.
+$$
+
+Each observation was assigned to the class with the highest score. The dimensions of all matrices and vectors are consistent. The resulting confusion matrix shows 345 correct predictions out of 462 observations, giving an in-sample accuracy of approximately $74.68\%$.
+
+c. Perform the same LDA analysis using `MASS::lda` in R or `LinearDiscriminantAnalysis(solver="svd")` in Python, using the same numerical predictors and empirical class priors. Provide the confusion matrix. Do the results match?
+
+### Solution
+```{python}
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+
+lda = LinearDiscriminantAnalysis(
+    solver="svd",
+    priors=priors
+)
+
+lda.fit(X, y)
+
+pred_sklearn = lda.predict(X)
+
+cm_sklearn = confusion_matrix(
+    y,
+    pred_sklearn,
+    labels=classes
+)
+
+cm_sklearn_df = pd.DataFrame(
+    cm_sklearn,
+    index=["Observed 0", "Observed 1"],
+    columns=["Predicted 0", "Predicted 1"]
+)
+
+display(cm_manual_df)
+display(cm_sklearn_df)
+
+print(
+    "Predictions identical:",
+    np.array_equal(pred_manual, pred_sklearn)
+)
+```
+
+Yes, the results match. Both methods produce the same confusion matrix:
+
+$$
+\begin{pmatrix}
+258 & 44 \\
+73 & 87
+\end{pmatrix}
+$$
+
+All 462 predicted labels are identical, confirming that the manually calculated LDA predictions agree with those from `LinearDiscriminantAnalysis(solver="svd")`.
+
+## Question 2: QDA and marginal screening
+
+In the lecture, ordinary QDA could not be fitted to the handwritten digit sample because its within-class covariance matrices were singular. Let's consider selecting fewer variables and see whether this helps. For this question, use the full [zip-train.csv.gz](data/zip-train.csv.gz) as the training data and [zip-test.csv.gz](data/zip-test.csv.gz) as the test data, with all ten digit classes. These are the original `zip.train` and `zip.test` data from `ElemStatLearn`. Each file has no header: the first column is the digit label and the remaining 256 columns are pixel values.
+
+Instead of using all 256 predictors, select the 40 with the largest marginal variances in the training data. Here, marginal variance means the variance of one pixel across all training observations. Use the original pixel values without standardizing them, and retain the same selected predictors in the test data.
+
+Use `MASS::qda` in R or `QuadraticDiscriminantAnalysis(tol=1e-8)` in Python.
+
+a. Fit QDA using these 40 predictors and report the test confusion matrix, with observed classes in rows and predicted classes in columns. Also report the test misclassification rate.
+
+### Solution
+```{python}
+import numpy as np
+import pandas as pd
+
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+from sklearn.metrics import confusion_matrix
+
+# Load data
+train_q2 = pd.read_csv("data/zip-train.csv.gz", header=None)
+test_q2 = pd.read_csv("data/zip-test.csv.gz", header=None)
+
+X_train_q2 = train_q2.iloc[:, 1:].to_numpy()
+y_train_q2 = train_q2.iloc[:, 0].to_numpy().astype(int)
+
+X_test_q2 = test_q2.iloc[:, 1:].to_numpy()
+y_test_q2 = test_q2.iloc[:, 0].to_numpy().astype(int)
+
+# Select 40 predictors based on training variances
+variances_q2 = np.var(X_train_q2, axis=0, ddof=1)
+top40_q2 = np.argsort(variances_q2)[-40:][::-1]
+
+X_train_40_q2 = X_train_q2[:, top40_q2]
+X_test_40_q2 = X_test_q2[:, top40_q2]
+
+# Fit QDA
+qda_40_q2 = QuadraticDiscriminantAnalysis(tol=1e-8)
+qda_40_q2.fit(X_train_40_q2, y_train_q2)
+
+# Predict
+pred_40_q2 = qda_40_q2.predict(X_test_40_q2)
+
+# Confusion matrix
+classes_q2 = np.arange(10)
+
+cm_40_q2 = confusion_matrix(
+    y_test_q2,
+    pred_40_q2,
+    labels=classes_q2
+)
+
+cm_40_df_q2 = pd.DataFrame(
+    cm_40_q2,
+    index=[f"Observed {k}" for k in classes_q2],
+    columns=[f"Predicted {k}" for k in classes_q2]
+)
+
+# Test misclassification rate
+error_40_q2 = np.mean(pred_40_q2 != y_test_q2)
+
+print("Training shape:", X_train_40_q2.shape)
+print("Test shape:", X_test_40_q2.shape)
+print("Test misclassification rate:", error_40_q2)
+
+display(cm_40_df_q2)
+```
+
+I selected the 40 predictors with the largest marginal variances based on the training data and used the same predictors in the test data. I then fitted a QDA model using the original pixel values without standardization.
+
+The test misclassification rate was calculated as
+
+$$
+\text{Test Error}
+=
+\frac{1}{n_{\text{test}}}
+\sum_{i=1}^{n_{\text{test}}}
+I(\hat{y}_i \neq y_i).
+$$
+
+The resulting test misclassification rate is 0.155.
+
+b. Does the method work? Why do you think it works or does not work?
+
+### Solution
+```{python}
+for k in classes_q2:
+    Xk_q2 = X_train_40_q2[y_train_q2 == k]
+
+    rank_q2 = np.linalg.matrix_rank(
+        np.cov(Xk_q2, rowvar=False)
+    )
+
+    print(f"Class {k}: covariance rank = {rank_q2}/40")
+```
+
+Yes, the method works in terms of resolving the singular covariance issue. After selecting the 40 predictors with the largest marginal variances, all ten within-class covariance matrices have full rank ($40/40$). Therefore, the covariance matrices are nonsingular, allowing QDA to be fitted successfully.
+
+Reducing the number of predictors helps because QDA estimates a separate covariance matrix for each class, and using fewer predictors reduces the number of parameters that need to be estimated.
+
+c. Repeat the analysis using the 10 predictors with the largest marginal variances in the training data. How does the test misclassification rate compare with the 40-predictor version? Why do you think this happens?
+
+### Solution
+```{python}
+# Select 10 predictors
+top10_q2 = np.argsort(variances_q2)[-10:][::-1]
+
+X_train_10_q2 = X_train_q2[:, top10_q2]
+X_test_10_q2 = X_test_q2[:, top10_q2]
+
+# Fit QDA
+qda_10_q2 = QuadraticDiscriminantAnalysis(tol=1e-8)
+qda_10_q2.fit(X_train_10_q2, y_train_q2)
+
+# Predict
+pred_10_q2 = qda_10_q2.predict(X_test_10_q2)
+
+# Confusion matrix
+cm_10_q2 = confusion_matrix(
+    y_test_q2,
+    pred_10_q2,
+    labels=classes_q2
+)
+
+cm_10_df_q2 = pd.DataFrame(
+    cm_10_q2,
+    index=[f"Observed {k}" for k in classes_q2],
+    columns=[f"Predicted {k}" for k in classes_q2]
+)
+
+# Test misclassification rate
+error_10_q2 = np.mean(pred_10_q2 != y_test_q2)
+
+display(cm_10_df_q2)
+
+print("40 predictors test error:", error_40_q2)
+print("10 predictors test error:", error_10_q2)
+```
+
+
+I repeated the QDA analysis using the 10 predictors with the largest marginal variances in the training data.
+
+The test misclassification rates for the 40-predictor and 10-predictor models are 0.155 and 0.342, respectively.
+
+Reducing the number of predictors decreases the number of covariance parameters that need to be estimated, which may improve estimation stability. However, it may also discard useful information for distinguishing digit classes. This reflects the bias-variance trade-off.
+
+## Question 3: Compare LDA and QDA
+
+In this simulation, we will study how the relative performance of LDA and QDA changes with the true covariance structure. The parameter $\rho$ controls the distribution from which we generate the data; it is not a tuning parameter of LDA or QDA.
+
+Consider a classification problem with two equally likely classes, labeled 1 and 2, and $p=10$ covariates. The first two covariates have the class-conditional distributions
+
+$$
+\begin{pmatrix}X_1\\X_2\end{pmatrix}\mid Y=1
+\sim N_2\left(
+\begin{pmatrix}-1\\0\end{pmatrix},
+\begin{pmatrix}1&\rho\\\rho&1\end{pmatrix}
+\right),
+$$
+
+$$
+\begin{pmatrix}X_1\\X_2\end{pmatrix}\mid Y=2
+\sim N_2\left(
+\begin{pmatrix}1\\0\end{pmatrix},
+\begin{pmatrix}1&-\rho\\-\rho&1\end{pmatrix}
+\right).
+$$
+
+In both classes, the remaining eight covariates are independent standard normal variables, independent of the first two. Consider
+
+$$
+\rho\in\{0,0.2,0.4,0.6,0.8,0.9\}.
+$$
+
+For each value of $\rho$, generate 100 training observations and 1,000 independent test observations from each class. Fit ordinary LDA and QDA using all 10 covariates and equal class priors. Estimate the class means from the training data, with one pooled covariance matrix for LDA and one full covariance matrix per class for QDA. Set a random seed and report it.
+
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.discriminant_analysis import (
+    LinearDiscriminantAnalysis,
+    QuadraticDiscriminantAnalysis
+)
+
+seed_q3 = 432
+rng_q3 = np.random.default_rng(seed_q3)
+
+rho_values_q3 = [0, 0.2, 0.4, 0.6, 0.8, 0.9]
+
+print("Random seed:", seed_q3)
+
+
+def generate_data_q3(rho, n_per_class, rng):
+    # Class means for X1 and X2
+    mu1 = [-1, 0]
+    mu2 = [1, 0]
+
+    # Class-specific covariance matrices
+    Sigma1 = [[1, rho], [rho, 1]]
+    Sigma2 = [[1, -rho], [-rho, 1]]
+
+    # Generate first two predictors
+    X1_signal = rng.multivariate_normal(
+        mu1, Sigma1, size=n_per_class
+    )
+    X2_signal = rng.multivariate_normal(
+        mu2, Sigma2, size=n_per_class
+    )
+
+    # Generate eight noise predictors
+    X1_noise = rng.standard_normal((n_per_class, 8))
+    X2_noise = rng.standard_normal((n_per_class, 8))
+
+    # Combine signal and noise
+    X1 = np.column_stack((X1_signal, X1_noise))
+    X2 = np.column_stack((X2_signal, X2_noise))
+
+    # Combine two classes
+    X = np.vstack((X1, X2))
+
+    y = np.concatenate((
+        np.ones(n_per_class, dtype=int),
+        np.full(n_per_class, 2, dtype=int)
+    ))
+
+    return X, y
+
+X_train_q3, y_train_q3 = generate_data_q3(
+    0.4, 100, rng_q3
+)
+
+print(X_train_q3.shape)
+print(y_train_q3.shape)
+```
+
+a. Generate one dataset for each value of $\rho$. Fit both methods and calculate their test misclassification rates. Within each setting, use the same training and test observations for the two methods.
+
+### Solution
+```{python}
+results_a_q3 = []
+
+for rho in rho_values_q3:
+
+    # Generate training and test datasets
+    X_train_q3, y_train_q3 = generate_data_q3(
+        rho, 100, rng_q3
+    )
+
+    X_test_q3, y_test_q3 = generate_data_q3(
+        rho, 1000, rng_q3
+    )
+
+    # Fit LDA and QDA
+    lda_q3 = LinearDiscriminantAnalysis(
+        priors=[0.5, 0.5]
+    )
+
+    qda_q3 = QuadraticDiscriminantAnalysis(
+        priors=[0.5, 0.5]
+    )
+
+    lda_q3.fit(X_train_q3, y_train_q3)
+    qda_q3.fit(X_train_q3, y_train_q3)
+
+    # Predict on the same test dataset
+    pred_lda_q3 = lda_q3.predict(X_test_q3)
+    pred_qda_q3 = qda_q3.predict(X_test_q3)
+
+    # Calculate test errors
+    error_lda_q3 = np.mean(pred_lda_q3 != y_test_q3)
+    error_qda_q3 = np.mean(pred_qda_q3 != y_test_q3)
+
+    results_a_q3.append({
+        "rho": rho,
+        "LDA Test Error": error_lda_q3,
+        "QDA Test Error": error_qda_q3
+    })
+
+results_a_df_q3 = pd.DataFrame(results_a_q3)
+
+display(results_a_df_q3)
+```
+
+b. At each fixed value of $\rho$, repeat the experiment 50 times, generating new training and test observations in each repetition. Plot average test error against $\rho$ in one figure, with one curve for LDA and one for QDA. These curves compare performance across different data-generating distributions.
+
+### Solution
+```{python}
+results_b_q3 = []
+
+for rho in rho_values_q3:
+
+    lda_errors_q3 = []
+    qda_errors_q3 = []
+
+    for b in range(50):
+
+        # Generate new training and test data
+        X_train_q3, y_train_q3 = generate_data_q3(
+            rho, 100, rng_q3
+        )
+
+        X_test_q3, y_test_q3 = generate_data_q3(
+            rho, 1000, rng_q3
+        )
+
+        # Fit both models
+        lda_q3 = LinearDiscriminantAnalysis(
+            priors=[0.5, 0.5]
+        )
+
+        qda_q3 = QuadraticDiscriminantAnalysis(
+            priors=[0.5, 0.5]
+        )
+
+        lda_q3.fit(X_train_q3, y_train_q3)
+        qda_q3.fit(X_train_q3, y_train_q3)
+
+        # Calculate test errors
+        lda_errors_q3.append(
+            np.mean(lda_q3.predict(X_test_q3) != y_test_q3)
+        )
+
+        qda_errors_q3.append(
+            np.mean(qda_q3.predict(X_test_q3) != y_test_q3)
+        )
+
+    results_b_q3.append({
+        "rho": rho,
+        "LDA Average Error": np.mean(lda_errors_q3),
+        "QDA Average Error": np.mean(qda_errors_q3)
+    })
+
+results_b_df_q3 = pd.DataFrame(results_b_q3)
+
+display(results_b_df_q3)
+
+plt.figure(figsize=(8, 5))
+
+plt.plot(
+    results_b_df_q3["rho"],
+    results_b_df_q3["LDA Average Error"],
+    marker="o",
+    label="LDA"
+)
+
+plt.plot(
+    results_b_df_q3["rho"],
+    results_b_df_q3["QDA Average Error"],
+    marker="s",
+    label="QDA"
+)
+
+plt.xlabel("rho")
+plt.ylabel("Average Test Misclassification Rate")
+plt.title("Average Test Error: LDA vs QDA")
+plt.legend()
+plt.grid(alpha=0.3)
+
+plt.show()
+```
+
+For each value of $\rho$, I repeated the simulation 50 times and calculated the average test misclassification rates for LDA and QDA.
+
+The results show that LDA maintains a relatively stable test error of approximately $0.17$, while QDA's test error generally decreases as $\rho$ increases. QDA performs better than LDA at $\rho = 0.8$ and $\rho = 0.9$.
+
+c. Compare the two methods at small and large values of $\rho$. How does changing the true covariance structure affect their relative performance? Explain the pattern using their covariance assumptions and the bias-variance trade-off. How can the eight noise covariates affect performance even though they contain no information about the class label?
+
+### Solution
+
+For small values of $\rho$ ($0$ to $0.6$), LDA performs better than QDA because the two classes have similar covariance matrices. LDA assumes a common covariance matrix, reducing estimation variance by pooling information across classes.
+
+As $\rho$ increases, the covariance matrices become more different. QDA performs better at $\rho = 0.8$ and $\rho = 0.9$ because it allows each class to have its own covariance matrix, reducing model bias. This illustrates the bias-variance trade-off between LDA's lower estimation variance and QDA's greater flexibility.
+
+The eight noise predictors contain no information about the class labels, but they still increase the number of parameters that need to be estimated. This can increase estimation variance and overfitting, especially for QDA.
+
+## Question 4: Create and use an LDA/QDA analysis skill
+
+In Homework 5, you created a skill for formatting plots. Now create a reusable skill that guides an AI agent through an LDA/QDA analysis and produces a concise statistical report. You may work with AI to design and write the skill; you do not need to write every line yourself.
+
+a. **Define the skill.** Write a single `SKILL.md` file no larger than **5 KB (5,000 bytes)**. Define the agent's behavior, analysis guidelines, and expected report structure. Keep the skill independent of this question: provide the dataset, response, and predictors separately when invoking it. The skill may guide the agent to explore lower-dimensional representations, such as principal component analysis (PCA), or to blend the class probabilities predicted by LDA and QDA. Keep all classifiers based on LDA, QDA, or their combination. Configure the skill to load **only when you explicitly invoke it**. Use your AI tool's invocation settings, or keep the file outside automatically loaded skill folders and supply it only in an explicit request.
+
+Your skill must require a clearly readable analysis report of **at most one printed page**, containing a figure, a table, and numerical model-fitting results. You may specify the type and style of figures and tables you want the AI to produce. All instructions in the skill must be independent of the actual dataset, its variable names, and its observed results. The report should briefly describe the candidate models, the cross-validation procedure and results, the selected model, and its estimated prediction error. It should explain the main findings and any limitations.
+
+b. **Apply the skill.** Explicitly invoke your skill to analyze the `SAheart` data from Question 1, using the same response and predictor coding. Ask the agent to seek the best predictive performance within the LDA/QDA methods allowed by your skill. Include ordinary LDA and QDA as comparisons; the extensions above are optional. Reserve a test set before choosing models. Use the same cross-validation folds within the training data to compare candidates and select any settings. Estimate any preprocessing, including an embedding, using only the training observations in each fold. Refit the selected model and preprocessing on all training observations, then evaluate the fitted classifier once on the reserved test set. Use misclassification rate to compare performance, and report your random seed.
+
+c. **Review and submit.** Check the agent's analysis and make any skill revisions using only training and cross-validation results. Append the final one-page analysis report and the complete contents of your `SKILL.md` to your homework report. State the file size and briefly explain how you enabled explicit invocation, including the prompt used to apply the skill. The one-page limit applies to the analysis report; the appended skill and this explanation are outside that limit.
+
+Your skill and analysis report will be reviewed and graded by other students through peer evaluation.
+
+### Solution
+
+#### Review and Submission
+The LDA/QDA analysis skill was saved as `SKILL.md` (3,936 bytes), satisfying the 5,000-byte limit.
+
+The skill was kept outside automatically loaded skill directories and explicitly invoked by instructing the AI agent to read and apply `SKILL.md`.
+
+The agent compared 18 LDA/QDA-based candidate models using 5-fold stratified cross-validation on the training data. The selected model was PCA5 + LDA, with a mean CV misclassification rate of $0.2545$ and a held-out test misclassification rate of $0.2473$.
+
+#### Invocation Prompt
+I explicitly invoked the skill in VS Code AI Agent using the following prompt:
+
+```text
+Explicitly read and apply `SKILL.md` to analyze `data/saheart.csv`.
+
+Use `chd` as the binary response and all nine other columns as numerical predictors. Code `famhist` as 1 for Absent and 2 for Present, consistent with Question 1.
+
+Follow all instructions in the skill and seek the best predictive performance among the permitted LDA/QDA-based models. Include ordinary LDA and QDA as candidates.
+
+Reserve a stratified test set before model selection. Use the same cross-validation folds for all candidates, and fit any preprocessing only on the training portion of each fold. Select the model based on cross-validation misclassification rate, then refit on the full training set and evaluate it once on the reserved test set.
+
+Use random seed 432.
+
+Generate a clearly readable, one-page statistical analysis report containing a figure, a table of numerical CV results, the selected model, its test misclassification rate, key findings, and limitations.
+
+Save the report as `lda_qda_report.pdf`. Do not modify `SKILL.md` based on test-set performance.
+```
+
+#### Complete SKILL.md
+````markdown
+---
+name: lda-qda-analysis
+summary: Reusable, explicitly invoked LDA/QDA classification analysis and one-page report.
+---
+
+# LDA/QDA Classification Analysis
+
+## Activation
+Use this skill ONLY when the user explicitly asks to use this SKILL.md. Never auto-apply it. The user supplies the dataset/path, response column, predictor columns, and any required coding. Do not assume any dataset or variable names.
+
+## Objective
+Compare ordinary LDA and ordinary QDA on held-out classification performance, optionally including PCA+LDA or PCA+QDA. Select by training-only cross-validation (CV), then evaluate the selected model once on a reserved test set. Report actual computed results; never fabricate scores.
+
+## Data and split
+1. Validate response, predictor types, missing values, class counts, and sample size. Respect user-specified predictor coding. Report any exclusions or imputation.
+2. Set and report a reproducible integer random seed (default 432). Before fitting, reserve a stratified 20% test set (unless the user provides a designated test set). Do not use it for any selection or revisions.
+3. Use stratified 5-fold CV on the 80% training set; use the SAME fold assignments for every candidate and hyperparameter setting. If class counts are too small for 5 folds, lower the number of folds, document why, and keep it consistent.
+
+## Models and preprocessing
+- Always include ordinary LDA and ordinary QDA with empirical class priors estimated from each training fold, without regularization.
+- Optionally test PCA+LDA and PCA+QDA using a small, feasible grid of PCA component counts selected entirely by training CV. Standardize continuous predictors for PCA. Fit the scaler, imputer (if needed), PCA, and classifier INSIDE a pipeline so each CV fold learns preprocessing only from that fold's training observations.
+- For ordinary LDA/QDA, use numeric predictors and no unnecessary scaling. Handle missingness in a train-only fitted pipeline if necessary. Do not treat test data as training data.
+- Use only LDA, QDA, or a combination of their class probabilities; no unrelated classifier. If any model fails owing to singular covariance or other numerical issues, report the failure rather than silently replacing it with regularized QDA.
+
+## Selection and evaluation
+1. Optimize mean CV misclassification rate. Display mean and, if space allows, SD across folds for each candidate and chosen parameter setting. Break ties by preferring the simpler model (LDA, then QDA, then PCA extensions), and state the rule.
+2. Refit the selected preprocessing and classifier on ALL training observations.
+3. Predict ONCE on the reserved test set and report test misclassification rate = incorrect predictions / test observations, along with counts, and optionally a small confusion matrix if space permits.
+4. The test score is an estimate, not a guarantee of future performance; note uncertainty due to a single split and the limited sample size.
+
+## Report: at most one printed page
+Produce a concise, legible report (PDF or print-ready HTML) with: (a) title, dataset/task summary, sample sizes, seed, and split; (b) short candidate-model and identical-fold CV description; (c) a small TABLE of numeric mean CV errors (and optional SD) for candidates; (d) a FIGURE comparing the candidates' CV errors, with clear labels; (e) selected model, chosen settings, final held-out test error and numerator/denominator; (f) 2-3 sentences on key findings and limitations. Use readable font sizes and ensure the entire analysis report prints on one page. Keep code and full skill text outside this one-page report.
+
+## Quality checks
+Check for overlapping train/test rows, target leakage, inconsistent label encoding, class imbalance, fold reproducibility, failed models, and preprocessing fitted before CV. Never adjust models or this skill in response to test-set results. Clearly distinguish CV performance from held-out test performance.
+````
+
+### Final LDA/QDA Analysis Report
+[View the full-size one-page LDA/QDA analysis report](lda_qda_report.pdf)
