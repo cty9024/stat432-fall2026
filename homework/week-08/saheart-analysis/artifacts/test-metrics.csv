@@ -1,0 +1,2 @@
+"selected_model","n_test","correct","incorrect","accuracy","error","TN","FP","FN","TP","type_I","type_II"
+"LDA, all original predictors",92,74,18,0.804347826086957,0.195652173913043,54,6,12,20,0.1,0.375

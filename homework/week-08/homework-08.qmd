@@ -1,0 +1,601 @@
+---
+title: "Homework 08"
+pagetitle: "Homework 08"
+body-classes: "lecture-page practice-page"
+format:
+  html:
+    embed-resources: true
+    html-math-method: mathml
+    page-layout: full
+    toc: true
+    toc-location: body
+    toc-title: "On this page"
+    toc-depth: 2
+execute:
+  echo: false
+---
+The former kernel-tuning question has moved to Homework 09.
+
+Solutions for Questions 1 and 2 will be available after Monday, October 19, 2026. No solution can be provided for Question 3.
+
+For Questions 1 and 2, use either R or Python.
+
+## Question 1: Boundary and margin
+
+Use `margin-geometry-20.csv` from the combined ZIP, which contains 20 observations with predictors $x_1,x_2$ and class labels $y\in\{-1,1\}$. Consider the score
+
+$$
+f(x)=0.8x_1+0.6x_2.
+$$
+
+Since $\|(0.8,0.6)\|_2=1$, the lines $f(x)=\pm1$ are each a distance 1 from the decision boundary $f(x)=0$.
+
+a. Calculate the distance from every observation to the decision boundary and its functional margin $yf(x)$. In a table, report these values and whether each observation is inside, on, or beyond the margin for its class. Compare $yf(x)$ with 1 to make this distinction.
+
+### Solution
+```{python}
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Load the data
+df = pd.read_csv("data/margin-geometry-20.csv")
+
+# Identify the observation-number and predictor columns
+def standardize(name):
+    return "".join(c for c in str(name).lower() if c.isalnum())
+
+col_map = {standardize(c): c for c in df.columns}
+
+obs_aliases = [
+    "obs", "observation", "observationnumber",
+    "obsnumber", "obsnum", "obsno", "obsid",
+    "observationid", "id", "number", "pointid",
+    "point", "index"
+]
+obs_key = next((k for k in obs_aliases if k in col_map), None)
+
+if obs_key is None or not all(k in col_map for k in ["x1", "x2", "y"]):
+    raise ValueError(f"Check CSV column names: {df.columns.tolist()}")
+
+df = df.rename(columns={
+    col_map[obs_key]: "obs",
+    col_map["x1"]: "x1",
+    col_map["x2"]: "x2",
+    col_map["y"]: "y"
+})
+
+df[["x1", "x2", "y"]] = df[["x1", "x2", "y"]].apply(pd.to_numeric)
+
+assert len(df) == 20
+assert set(df["y"].unique()).issubset({-1, 1})
+
+# Calculate score, distance, and functional margin
+df["score"] = 0.8 * df["x1"] + 0.6 * df["x2"]
+df["distance"] = abs(df["score"])
+df["functional_margin"] = df["y"] * df["score"]
+
+# Classify margin position
+tol = 1e-9
+
+df["position"] = np.select(
+    [
+        np.isclose(df["functional_margin"], 1, atol=tol, rtol=0),
+        df["functional_margin"] < 1
+    ],
+    ["On", "Inside"],
+    default="Beyond"
+)
+
+df["misclassified"] = df["functional_margin"] < -tol
+
+# Display results
+print(
+    df[[
+        "obs", "x1", "x2", "y",
+        "distance", "functional_margin",
+        "position", "misclassified"
+    ]].round(3).to_string(index=False)
+)
+
+```
+
+The decision function is
+
+$$
+f(x_i)=0.8x_{i1}+0.6x_{i2}.
+$$
+
+Since $\|w\|_2=\sqrt{0.8^2+0.6^2}=1$, the distance to the decision boundary is
+
+$$
+d_i=\frac{|f(x_i)|}{\|w\|_2}=|f(x_i)|.
+$$
+
+The functional margin is
+
+$$
+m_i=y_if(x_i).
+$$
+
+We classify each observation based on its functional margin:
+
+- **Inside:** $m_i<1$
+- **On:** $m_i=1$
+- **Beyond:** $m_i>1$
+
+From the results, 6 observations are inside the margin, 2 are on the margin, and 12 are beyond the margin.
+
+Observations 10 and 20 are misclassified because their functional margins are negative ($m_i=-0.20$), meaning they lie on the wrong side of the decision boundary.
+
+b. Plot the observations, the boundary $f(x)=0$, and the margin lines $f(x)=\pm1$. Distinguish the two classes and identify the observations inside the margin in your plot.
+
+### Solution
+```{python}
+
+# Plot the decision boundary and margin lines
+x1_grid = np.linspace(-3.2, 3.2, 400)
+
+fig, ax = plt.subplots(figsize=(9, 8))
+
+for c, ls, name in [
+    (0, "-", "Decision boundary: f(x)=0"),
+    (1, "--", "Margin: f(x)=1"),
+    (-1, "--", "Margin: f(x)=-1")
+]:
+    x2_line = (c - 0.8 * x1_grid) / 0.6
+    ax.plot(
+        x1_grid, x2_line,
+        linestyle=ls,
+        color="black" if c == 0 else "gray",
+        linewidth=2 if c == 0 else 1.5,
+        label=name
+    )
+
+# Plot observations by class
+for y_value, color, marker in [
+    (-1, "tab:orange", "s"),
+    (1, "tab:blue", "o")
+]:
+    subset = df[df["y"] == y_value]
+    ax.scatter(
+        subset["x1"], subset["x2"],
+        color=color, marker=marker, s=75,
+        label=f"y = {y_value}", zorder=3
+    )
+
+# Highlight observations inside the margin
+inside = df["position"] == "Inside"
+
+ax.scatter(
+    df.loc[inside, "x1"],
+    df.loc[inside, "x2"],
+    s=230,
+    facecolors="none",
+    edgecolors="red",
+    linewidths=1.7,
+    label="Inside margin",
+    zorder=4
+)
+
+# Label observations using supplied numbers
+for _, row in df.iterrows():
+    ax.annotate(
+        str(row["obs"]),
+        (row["x1"], row["x2"]),
+        xytext=(5, 5),
+        textcoords="offset points",
+        fontsize=9
+    )
+
+# Required plot settings
+ax.set_xlim(-3.2, 3.2)
+ax.set_ylim(-3, 3)
+ax.set_aspect("equal", adjustable="box")
+
+ax.set_xlabel(r"$x_1$")
+ax.set_ylabel(r"$x_2$")
+ax.set_title("Decision Boundary and Margin Geometry")
+ax.legend(fontsize=9)
+ax.grid(alpha=0.2)
+
+plt.show()
+```
+
+The decision boundary is defined by
+
+$$
+0.8x_1+0.6x_2=0,
+$$
+
+and the two margin lines are defined by
+
+$$
+0.8x_1+0.6x_2=\pm1.
+$$
+
+The solid line represents the decision boundary, while the dashed lines represent the margins.
+
+The two classes are shown using different colors and markers. Observations inside the margin ($y_if(x_i)<1$) are highlighted with red circles.
+
+Observations 8, 9, 10, 18, 19, and 20 are inside the margin, while observations 1 and 11 lie exactly on the margin lines.
+
+Since $\|w\|_2=1$, each margin line is one unit away from the decision boundary.
+
+c. Report how many observations are inside, on, and beyond the margin. Which observations are misclassified by this decision rule?
+
+Use the observation numbers supplied in the data. Set the $x_1$ axis to $[-3.2,3.2]$, set the $x_2$ axis to $[-3,3]$, and use an equal aspect ratio. Do not fit a new classifier for this question.
+
+### Solution
+```{python}
+
+# Count observations in each margin category
+counts = df["position"].value_counts().reindex(
+    ["Inside", "On", "Beyond"], fill_value=0
+)
+
+print("Margin counts:")
+print(counts)
+print(f"\nTotal observations: {counts.sum()}")
+
+# Identify misclassified observations
+misclassified = df.loc[
+    df["misclassified"], "obs"
+].tolist()
+
+print("\nMisclassified observation numbers:")
+print(misclassified if misclassified else "None")
+
+# Check for observations exactly on the decision boundary
+boundary_obs = df.loc[
+    np.isclose(df["score"], 0, atol=tol, rtol=0),
+    "obs"
+].tolist()
+
+if boundary_obs:
+    print("\nObservations on f(x)=0 (prediction ties):")
+    print(boundary_obs)
+
+# Generate a summary sentence
+print(
+    f"\nThere are {counts['Inside']} observations inside, "
+    f"{counts['On']} on, and "
+    f"{counts['Beyond']} beyond the margin."
+)
+
+```
+
+Based on the functional margin $m_i=y_if(x_i)$:
+
+- **Inside:** 6 observations (8, 9, 10, 18, 19, 20).
+- **On:** 2 observations (1, 11).
+- **Beyond:** 12 observations.
+
+Observations 10 and 20 are misclassified because their functional margins are negative:
+
+$$
+y_if(x_i)=-0.20<0.
+$$
+
+This means they lie on the wrong side of the decision boundary. Both observations are also inside the margin since their functional margins are less than 1.
+
+## Question 2: Margin in four dimensions
+
+Use `margin-geometry-4d.csv` from the combined ZIP, which contains 50 observations with four predictors and class labels $y\in\{-1,1\}$. Consider the linear score
+
+$$
+f(\mathbf{x})=\beta_0+\mathbf{x}^{\mathsf T}\boldsymbol{\beta},
+\qquad
+\beta_0=-1,
+\quad
+\boldsymbol{\beta}=(1,2,-2,4)^{\mathsf T}.
+$$
+
+a. Project the observations onto the direction of $\boldsymbol{\beta}$ and plot their positions on one axis. Distinguish the two classes and mark the decision boundary. Use the plot to calculate the geometric margin $M$, the distance from the boundary to the closest observation.
+
+### Solution
+```{python}
+# Load data
+df = pd.read_csv("data/margin-geometry-4d.csv")
+
+# Check required columns
+required = ["x1", "x2", "x3", "x4", "y"]
+assert all(col in df.columns for col in required)
+assert len(df) == 50
+assert set(df["y"].unique()) == {-1, 1}
+
+# Use supplied observation numbers if available
+obs_col = next(
+    (c for c in ["obs", "observation", "id"] if c in df.columns),
+    None
+)
+df["obs_number"] = (
+    df[obs_col] if obs_col is not None
+    else np.arange(1, len(df) + 1)
+)
+
+# Given coefficients
+beta0 = -1.0
+beta = np.array([1.0, 2.0, -2.0, 4.0])
+beta_norm = np.linalg.norm(beta)
+
+X = df[["x1", "x2", "x3", "x4"]].to_numpy()
+
+# Project observations onto the beta direction
+df["projection"] = X @ beta / beta_norm
+
+# Calculate decision scores and distances
+df["score"] = beta0 + X @ beta
+df["functional_margin"] = df["y"] * df["score"]
+df["distance"] = np.abs(df["score"]) / beta_norm
+
+# Decision boundary in projected coordinates
+boundary = -beta0 / beta_norm
+
+# Geometric margin and closest observations
+M = df["distance"].min()
+closest = df[np.isclose(df["distance"], M)]
+
+print(f"||beta|| = {beta_norm:.4f}")
+print(f"Projected decision boundary = {boundary:.4f}")
+print(f"Geometric margin M = {M:.4f}")
+print("Closest observation(s):", closest["obs_number"].tolist())
+
+# Plot observations on one projected axis
+fig, ax = plt.subplots(figsize=(11, 4))
+
+rng = np.random.default_rng(432)
+jitter = rng.uniform(-0.06, 0.06, len(df))
+
+for cls, color, marker in [
+    (-1, "tab:orange", "s"),
+    (1, "tab:blue", "o")
+]:
+    mask = df["y"] == cls
+    ax.scatter(
+        df.loc[mask, "projection"],
+        jitter[mask.to_numpy()],
+        color=color,
+        marker=marker,
+        s=60,
+        label=f"y = {cls}",
+        zorder=3
+    )
+
+# Mark decision boundary
+ax.axvline(
+    boundary,
+    color="black",
+    linestyle="--",
+    linewidth=2,
+    label="Decision boundary"
+)
+
+# Highlight observations closest to the boundary
+closest_idx = closest.index.to_numpy()
+ax.scatter(
+    df.loc[closest_idx, "projection"],
+    jitter[closest_idx],
+    s=220,
+    facecolors="none",
+    edgecolors="red",
+    linewidths=2,
+    label="Closest observation(s)",
+    zorder=4
+)
+
+# Label closest observations
+for idx in closest_idx:
+    ax.annotate(
+        str(df.loc[idx, "obs_number"]),
+        (df.loc[idx, "projection"], jitter[idx]),
+        xytext=(5, 9),
+        textcoords="offset points"
+    )
+
+ax.axhline(0, color="lightgray", linewidth=1)
+ax.set_yticks([])
+ax.set_ylim(-0.22, 0.22)
+ax.set_xlabel(r"Projection onto $\beta / \|\beta\|_2$")
+ax.set_title("Projection onto the Beta Direction")
+ax.legend()
+ax.grid(axis="x", alpha=0.2)
+
+plt.show()
+```
+
+The given decision function is
+
+$$
+f(x)=\beta_0+x^T\beta,
+$$
+
+where
+
+$$
+\beta_0=-1,\qquad
+\beta=(1,2,-2,4)^T.
+$$
+
+The norm of the coefficient vector is
+
+$$
+\|\beta\|_2
+=\sqrt{1^2+2^2+(-2)^2+4^2}=5.
+$$
+
+We project each observation onto the direction of $\beta$:
+
+$$
+z_i=\frac{x_i^T\beta}{\|\beta\|_2}.
+$$
+
+The decision boundary in the projected space is
+
+$$
+z_0=-\frac{\beta_0}{\|\beta\|_2}
+=\frac{1}{5}=0.2.
+$$
+
+The perpendicular distance from each observation to the decision boundary is
+
+$$
+d_i=\frac{|f(x_i)|}{\|\beta\|_2}.
+$$
+
+Therefore, the geometric margin is
+
+$$
+M=\min_i d_i=1.
+$$
+
+Observations 4, 15, 33, and 36 are the closest to the decision boundary, each at a distance of 1.
+
+b. Express the same decision boundary using the SVM normalization in which the smallest functional margin $y_i f(\mathbf{x}_i)$ is set to 1. What are the corresponding values of $\boldsymbol{\beta}$ and $\beta_0$?
+
+### Solution
+```{python}
+
+# Find the smallest functional margin
+gamma_min = df["functional_margin"].min()
+
+print(f"Minimum functional margin = {gamma_min:.6f}")
+
+if gamma_min <= 0:
+    print(
+        "SVM normalization is not possible by positive "
+        "rescaling because the given rule does not "
+        "correctly separate all observations."
+    )
+else:
+    # Normalize coefficients
+    beta_svm = beta / gamma_min
+    beta0_svm = beta0 / gamma_min
+
+    print(f"\nNormalized beta0 = {beta0_svm:.6f}")
+    print("Normalized beta =", np.round(beta_svm, 6))
+
+    # Verify the minimum functional margin equals 1
+    normalized_scores = beta0_svm + X @ beta_svm
+    normalized_margins = df["y"].to_numpy() * normalized_scores
+
+    print(
+        "Minimum normalized functional margin =",
+        round(normalized_margins.min(), 6)
+    )
+
+    # Verify geometric margin
+    M_svm = 1 / np.linalg.norm(beta_svm)
+
+    print(f"Geometric margin M = {M_svm:.6f}")
+    print(
+        "Matches part (a):",
+        np.isclose(M, M_svm)
+    )
+
+```
+
+Under SVM normalization, the smallest functional margin is set to 1:
+
+$$
+\min_i y_i f_{\mathrm{SVM}}(x_i)=1.
+$$
+
+The minimum functional margin of the original decision function is
+
+$$
+\gamma_{\min}
+=\min_i y_i(\beta_0+x_i^T\beta)=5.
+$$
+
+Therefore, we divide both the intercept and the coefficient vector by 5:
+
+$$
+\beta_{0,\mathrm{SVM}}
+=\frac{-1}{5}=-0.2,
+$$
+
+$$
+\beta_{\mathrm{SVM}}
+=\frac{1}{5}
+\begin{pmatrix}
+1\\
+2\\
+-2\\
+4
+\end{pmatrix}
+=
+\begin{pmatrix}
+0.2\\
+0.4\\
+-0.4\\
+0.8
+\end{pmatrix}.
+$$
+
+This scaling preserves the decision boundary and makes the minimum functional margin equal to 1.
+
+The geometric margin remains unchanged:
+
+$$
+M=\frac{1}{\|\beta_{\mathrm{SVM}}\|_2}
+=\frac{1}{1}=1,
+$$
+
+which agrees with part (a).
+
+## Question 3: Peer review of a Homework 7 skill
+
+The instructor's GitHub account, **rqzhu-aide**, will open a **GitHub Issue** in the repository containing your Homework 7 submission. It will link to **one** assigned student's repository.
+
+1. **Use the skill.** Find the complete skill definition in the assigned student's Homework 7 report. Copy it without changes into a local `SKILL.md` file in your own folder. You do not need to install it. Give your agent the path to the file and explicitly ask it to follow that skill while analyzing the `SAheart` data, using the response and predictor coding from Homework 7. Provide the necessary data information, but no additional preferences about methods, figures, model selection, or report style. Let the skill direct the analysis.
+
+   Monitor the time, your token use, and your weekly quota while the agent works. If the run is taking too long or using your allowance too quickly, you may send a **steer message** asking the agent to finish immediately, or stop the run and summarize what you observed. A steer message redirects an agent while it is working; learn how to send one in your AI tool before starting.
+
+2. **Write a peer review.** Read the student's submitted report and what the skill produced in your run. Give a brief overall assessment, followed by **three major items the author could improve**. You may comment on any aspect of the skill or report. For each item, explain what you observed, why it matters, and what you recommend changing. If you stopped the run early, explain where and why. Write the review yourself, without AI assistance.
+
+3. **Share your review.** Open a GitHub Issue in the assigned student's Homework 7 repository containing your review. Copy the same review into your Homework 8 submission report and include a link to the GitHub Issue.
+
+### Solution
+
+GitHub Issue: [Link to my peer review](https://github.com/HiImChuang/stat432-fall2026/issues/5)
+
+````markdown
+Overall Assessment
+
+Overall, the skill works well: it successfully carried out model comparison, cross-validation, held-out test evaluation, and report generation. I found three areas for improvement: a missing figure, ambiguous model-exploration instructions, and report readability under the one-page limit. Because the skill is already strong, the third item is a minor suggestion.
+
+1. Missing Figure
+
+Observation:
+The report does not include a figure, and the skill does not instruct the agent to produce any plots or visualizations of the data or model results. Neither the author’s report nor the one generated by my agent contains a figure.
+
+Why it matters:
+Homework 7 requires a figure, a table, and numerical model-fitting results. Without a figure, the report does not fully meet the assignment requirements and misses an opportunity to visually compare the data and model results. Although the table, accuracy, and confusion matrix already convey model performance, a figure would make the comparison easier to interpret.
+
+Recommendation:
+The skill includes instructions for the table but none for the figure. I recommend adding an explicit requirement to produce a figure that visualizes the data and model results. This would make the report more complete and give readers a visual summary of the analysis.
+
+2. Model Exploration Instructions
+
+Observation:
+The skill states: “For many covariates, try LDA/QDA with high-variance subsets or leading PCs at several dimensions.” It is unclear what counts as “many” covariates or “several” dimensions, and the skill gives no specific guidance on how to choose the number of covariates or principal components.
+
+Why it matters:
+The vague wording led to noticeably different results between the author’s report and my agent’s. The author’s report compared 10 candidate models, used PCA, and selected LDA with 4 PCs, whereas my agent compared only 2 models, did not use PCA, and selected ordinary LDA. PCA is an optional extension, so the difference is not a statistical error. However, it shows that different agents may interpret the instructions inconsistently, which can affect how thorough the model exploration is.
+
+Recommendation:
+The skill should give more specific guidance on how to choose the number of covariates or principal components, for example by specifying a range of dimensions to try.
+
+3. Report Readability
+
+Observation:
+The report is fairly text-heavy.
+
+Why it matters:
+If a figure is added, the report may exceed the one-page limit.
+
+Recommendation:
+Make the report more concise by removing unnecessary wording so that a figure can fit within one page.
+````

@@ -1,0 +1,9 @@
+rows: 462
+predictors: sbp, tobacco, ldl, adiposity, famhist, typea, obesity, alcohol, age
+duplicate rows: 0
+class counts: 0 302; 1 160
+training rows: 370
+test rows: 92
+fold count: 10
+seed: 432
+selected: LDA, all original predictors

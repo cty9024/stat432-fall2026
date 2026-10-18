@@ -1,0 +1,62 @@
+---
+title: "SAheart: LDA and QDA"
+format:
+  html:
+    embed-resources: true
+    toc: false
+    page-layout: full
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+<style>
+@page { size: A4; margin: 10mm; }
+@media print {
+  body { font-family: Georgia, "Times New Roman", serif; font-size: 8.4pt; line-height: 1.17; }
+  h1 { font-size: 17pt; margin: 0 0 3mm; }
+  h2 { font-size: 10pt; margin: 2.8mm 0 1mm; }
+  p { margin: 0 0 1.5mm; }
+  table { font-size: 7.5pt; margin: 1mm 0 2mm; }
+  th, td { padding: 1px 4px !important; }
+  ul, ol { margin: 1mm 0 1.5mm; padding-left: 5mm; }
+  li { margin-bottom: .6mm; }
+  a { color: inherit; text-decoration: none; }
+  .artifact { font-size: 7.2pt; }
+}
+body { max-width: 900px; margin: 0 auto; }
+.artifact { color: #4c5553; font-size: .9em; }
+</style>
+
+## Data and procedure
+
+- **Variables:** `sbp` (integer), `tobacco` (numeric), `ldl` (numeric), `adiposity` (numeric), `famhist` (character), `typea` (integer), `obesity` (numeric), `alcohol` (numeric), and `age` (integer); `chd` **(outcome)** (integer).
+- **Missing value:** no (0 missing values among 462 rows); no rows or variables were removed or imputed. There were no duplicate rows.
+- **Recoding:** `famhist`: Absent = 1 (270), Present = 2 (192). `chd` became a factor with levels 0 and 1; positive class = 1 (302 class 0, 160 class 1). No other changes.
+- **CV:** Seed 432; stratified, independent-observation split, 370 training / 92 testing. Shared stratified 10-fold CV was run only on training data. No preprocessing was fit. Each fold’s accuracy is correct/held-out count; error is 1 − accuracy; confusion rows are actual and columns predicted, ordered 0, 1. Mean error is the unweighted mean of fold errors. Candidate priors follow each fold’s training class proportions. Every fold had more than nine training cases per class and full-rank class covariance; no fit failures or warnings occurred.
+- **Compared models:** ordinary LDA and ordinary QDA, each using all nine original predictors (2 of 10 allowed configurations). No feature selection or dimension reduction was used.
+
+## Results
+
+Mean fold accuracy and mean fold confusion-cell counts (SE = sample SD across folds / $\sqrt{10}$; cells shown as mean ± SE):
+
+| Candidate | Mean accuracy | TN | FP | FN | TP |
+|:--|--:|--:|--:|--:|--:|
+| LDA, all predictors | 71.04% | 20.30 ± 0.45 | 3.90 ± 0.38 | 6.80 ± 0.42 | 6.00 ± 0.45 |
+| QDA, all predictors | 70.50% | 19.60 ± 0.43 | 4.60 ± 0.40 | 6.30 ± 0.58 | 6.50 ± 0.60 |
+
+These are mean fold counts, not pooled totals. SEs are descriptive: folds differ in size and composition and their training sets overlap, so they are not independent confidence intervals.
+
+## Selected model and estimated prediction error
+
+1. **Chosen model:** LDA with all nine original predictors; selected by lower mean fold error.
+2. **Refitting and application:** Refit LDA on all 370 training observations, then evaluated once on the reserved test set; no training performance is reported.
+3. **Testing performance:** Error = 19.57% (18/92 incorrect); accuracy = 80.43% (74/92 correct).
+4. **Testing confusion matrix and error types:** Negative = no CHD (0), positive = CHD (1). Integer counts in TN, FP, FN, TP order: 54, 6, 12, 20. Type I = FP/(TN+FP) = 6/60 = 10.00%; Type II = FN/(FN+TP) = 12/32 = 37.50%.
+
+## Main findings and limitations
+
+LDA was preferred by CV, but its mean accuracy exceeded QDA by only 0.53 percentage points; that small difference does not establish superiority. The locked test result is higher than either CV mean, while the Type II rate shows that 12 of 32 CHD-positive cases were missed. The sample is modest and imbalanced (65.4% class 0); estimates may be unstable. LDA assumes common within-class covariance, whereas QDA estimates class-specific covariances. The 1.5-IQR scan flagged values in `sbp` (15), `tobacco` (19), `ldl` (14), `typea` (4), `obesity` (9), and `alcohol` (33); these were retained. CV model selection can be optimistic, and a single test split has sampling variability.
+
+<p class="artifact">Reproducible code: <a href="analysis.R">analysis.R</a>. Full CV predictions, fold metrics, feasibility checks, test predictions, split assignments, missingness, and descriptive summaries are in <code>artifacts/</code>; see <code>run-summary.txt</code> and <code>model-warnings.txt</code>.</p>
