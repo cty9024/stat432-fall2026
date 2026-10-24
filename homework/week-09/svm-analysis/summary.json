@@ -1,0 +1,102 @@
+{
+  "data_file": "data/saheart.csv",
+  "n": 462,
+  "p": 9,
+  "missing_cells": 0,
+  "class_counts": {
+    "0": 302,
+    "1": 160
+  },
+  "chd_prevalence": 0.3463203463203463,
+  "predictor_outliers_by_feature": {
+    "sbp": 15,
+    "tobacco": 19,
+    "ldl": 14,
+    "adiposity": 0,
+    "famhist": 0,
+    "typea": 4,
+    "obesity": 9,
+    "alcohol": 33,
+    "age": 0
+  },
+  "any_outlier_rows": 83,
+  "split_percent": 25,
+  "seed": 432,
+  "train_n": 346,
+  "test_n": 116,
+  "cv_splits": 5,
+  "cv_repeats": 3,
+  "candidate_count": 67,
+  "chosen_description": "LINEAR SVM (C=0.1)",
+  "chosen_params": {
+    "kernel": "linear",
+    "C": 0.1
+  },
+  "chosen_cv_error": 0.2881711525189786,
+  "chosen_cv_se": 0.013862419028636948,
+  "best_cv_error": 0.27184265010351966,
+  "one_se_threshold": 0.28892664263661744,
+  "test_error": 0.25862068965517243,
+  "test_errors": 30,
+  "confusion_matrix": [
+    [
+      65,
+      11
+    ],
+    [
+      19,
+      21
+    ]
+  ],
+  "tn": 65,
+  "fp": 11,
+  "fn": 19,
+  "tp": 21,
+  "sensitivity": 0.525,
+  "specificity": 0.8552631578947368,
+  "support_vectors": 216,
+  "support_vector_percent": 62.42774566473989,
+  "boundary_note": "A linear kernel gives a linear boundary in the standardized predictor space.",
+  "winner_note": "The range between the best and worst family-level CV errors was 1.6 percentage points; treat CV differences in light of their fold-level SEs.",
+  "family_best": {
+    "Linear": {
+      "params": {
+        "kernel": "linear",
+        "C": 0.1
+      },
+      "mean_error": 0.2881711525189786,
+      "se": 0.013862419028636948
+    },
+    "Polynomial (degree 2)": {
+      "params": {
+        "kernel": "poly",
+        "C": 0.01,
+        "gamma": 1.0,
+        "degree": 2,
+        "coef0": 1.0
+      },
+      "mean_error": 0.28144927536231884,
+      "se": 0.012562159887719105
+    },
+    "Polynomial (degree 3)": {
+      "params": {
+        "kernel": "poly",
+        "C": 10.0,
+        "gamma": 0.01,
+        "degree": 3,
+        "coef0": 1.0
+      },
+      "mean_error": 0.2737612146307799,
+      "se": 0.015380435283743539
+    },
+    "RBF": {
+      "params": {
+        "kernel": "rbf",
+        "C": 10.0,
+        "gamma": 0.01
+      },
+      "mean_error": 0.27184265010351966,
+      "se": 0.017083992533097787
+    }
+  }
+}
