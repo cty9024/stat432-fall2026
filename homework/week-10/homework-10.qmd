@@ -1,0 +1,517 @@
+---
+title: "Homework 10"
+pagetitle: "Homework 10"
+body-classes: "lecture-page practice-page"
+format:
+  html:
+    embed-resources: true
+    html-math-method: mathml
+    page-layout: full
+    toc: true
+    toc-location: body
+    toc-title: "On this page"
+    toc-depth: 2
+    code-fold: true
+    code-summary: "Show Code"
+---
+
+Solutions for Questions 1 and 2 will be available after Monday, November 2, 2026. No solution will be provided for Question 3.
+
+Use the RLT package for Questions 1 and 2: `RLT` in R or `rlt` in Python. The node-size parameter is `nmin` in R and `min_samples_leaf` in Python; both stop splitting a node when it contains at most that many observations. The candidate-predictor parameter is `mtry` in both languages. Use ordinary random forests, with reinforcement turned off.
+
+## Question 1: Bias-variance trade-off simulation
+
+Two important tuning parameters of random forests are node size and `mtry`. We have performed some preliminary analysis in class. The goal of this question is to perform a larger simulation study for these two tuning parameters.
+
+Consider a regression model with five jointly normally distributed predictors. Each predictor has mean 0 and variance 1, and the correlation between any two different predictors is 0.3. The response is
+
+$$
+Y=X_1+X_3+X_5+\varepsilon,
+\qquad \varepsilon\sim N(0,1),
+$$
+
+where the noise is independent of the predictors. Thus the true regression function is $f(\mathbf{x})=x_1+x_3+x_5$.
+
+a. Set up a simulation study with 100 repetitions. Generate 200 test predictor vectors once and keep them fixed. In each repetition, generate 200 new training observations and use the same training data for all tuning settings. Fit 500-tree forests, drawing 200 observations with replacement for each tree. Make the following two comparisons:
+
+   - Fix `mtry` at 3 and vary node size over $1,5,10,20,30$.
+   - Fix node size at 10 and vary `mtry` over $1,2,3,4,5$.
+
+   Leave all other fitting parameters at their defaults. Record the predictions at each test point across repetitions. For each setting, estimate the squared bias and variance at each test point, then average them over the 200 test points. Compare predictions with $f(\mathbf{x})$ when estimating bias. Produce two figures, one for each tuning parameter, showing the averaged squared bias and variance. Set a random seed and report it.
+
+### Solution
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from rlt import RLT_reg
+
+seed = 432
+rng = np.random.default_rng(seed)
+
+# Covariance matrix
+p = 5
+Sigma = np.full((p, p), 0.3)
+np.fill_diagonal(Sigma, 1.0)
+
+# Generate 200 fixed test points
+X_test = rng.multivariate_normal(
+    mean=np.zeros(p),
+    cov=Sigma,
+    size=200
+)
+
+# True regression function
+f_test = X_test[:, 0] + X_test[:, 2] + X_test[:, 4]
+
+n_rep = 100
+n_train = 200
+
+node_sizes = [1, 5, 10, 20, 30]
+mtry_values = [1, 2, 3, 4, 5]
+
+settings = (
+    [(node, 3) for node in node_sizes]
+    + [(10, mtry) for mtry in mtry_values]
+)
+
+# Remove duplicate setting (10, 3)
+settings = list(dict.fromkeys(settings))
+
+# Store predictions
+predictions = {
+    setting: np.zeros((n_rep, 200))
+    for setting in settings
+}
+
+for r in range(n_rep):
+
+    # Generate new training data
+    X_train = rng.multivariate_normal(
+        mean=np.zeros(p),
+        cov=Sigma,
+        size=n_train
+    )
+
+    epsilon = rng.normal(0, 1, n_train)
+
+    y_train = (
+        X_train[:, 0]
+        + X_train[:, 2]
+        + X_train[:, 4]
+        + epsilon
+    )
+
+    # Fit random forests for each setting
+    for node, mtry in settings:
+
+        rf = RLT_reg(
+            n_estimators=500,
+            mtry=mtry,
+            min_samples_leaf=node,
+            resample_prob=1.0,
+            resample_replace=True,
+            reinforcement=False,
+            random_state=seed + r,
+            n_jobs=1
+)
+
+        rf.fit(X_train, y_train)
+
+        predictions[(node, mtry)][r, :] = rf.predict(X_test)
+
+print("Simulation completed.")
+
+results = {}
+
+for setting, preds in predictions.items():
+
+    # Mean prediction across repetitions
+    mean_pred = preds.mean(axis=0)
+
+    # Squared bias at each test point
+    squared_bias = (mean_pred - f_test) ** 2
+
+    # Variance at each test point
+    variance = preds.var(axis=0, ddof=1)
+
+    # Average over 200 test points
+    results[setting] = {
+        "bias2": squared_bias.mean(),
+        "variance": variance.mean()
+    }
+
+# Figure 1: Node size
+bias_node = [
+    results[(node, 3)]["bias2"]
+    for node in node_sizes
+]
+
+var_node = [
+    results[(node, 3)]["variance"]
+    for node in node_sizes
+]
+
+plt.figure(figsize=(7, 5))
+
+plt.plot(node_sizes, bias_node, "o-", label="Squared Bias")
+plt.plot(node_sizes, var_node, "s-", label="Variance")
+
+plt.xlabel("Node Size")
+plt.ylabel("Average Value")
+plt.title("Bias-Variance Trade-off: Node Size (mtry = 3)")
+plt.legend()
+plt.grid(alpha=0.3)
+plt.show()
+
+
+# Figure 2: mtry
+bias_mtry = [
+    results[(10, mtry)]["bias2"]
+    for mtry in mtry_values
+]
+
+var_mtry = [
+    results[(10, mtry)]["variance"]
+    for mtry in mtry_values
+]
+
+plt.figure(figsize=(7, 5))
+
+plt.plot(mtry_values, bias_mtry, "o-", label="Squared Bias")
+plt.plot(mtry_values, var_mtry, "s-", label="Variance")
+
+plt.xlabel("mtry")
+plt.ylabel("Average Value")
+plt.title("Bias-Variance Trade-off: mtry (Node Size = 10)")
+plt.xticks(mtry_values)
+plt.legend()
+plt.grid(alpha=0.3)
+plt.show()
+
+print(f"Random seed: {seed}")
+```
+
+**Node Size ($\text{mtry} = 3$):**
+
+As node size increases, squared bias increases substantially, while variance decreases. Larger node sizes restrict tree splitting, making the trees less flexible and producing smoother predictions. This reduces variance but increases bias, illustrating the bias-variance trade-off. A node size of 30 results in particularly high bias, suggesting underfitting.
+
+**mtry (Node Size = 10):**
+
+As $\text{mtry}$ increases, squared bias decreases while variance increases. Larger values of $\text{mtry}$ allow more predictors to be considered at each split, increasing the chance of selecting important predictors and reducing bias. However, this also makes trees more similar and can increase the variance of the forest predictions. The results illustrate a trade-off between reducing bias and controlling variance.
+
+**Random seed:** 432
+
+b. Discuss your results in terms of the bias-variance trade-off:
+
+   - How does a large node size, such as 30, affect the fit in this example?
+   - What are the benefits and drawbacks of using a large `mtry` value?
+   - If each tree instead sampled 100 observations with replacement, would you expect the preferred node size to shift toward smaller or larger values? Explain your reasoning. You may use an additional simulation to help, but a particular pattern is not guaranteed.
+
+### Solution
+**1. Effect of Large Node Size**
+
+A large node size, such as 30, makes trees less flexible by stopping splits earlier. In this simulation, a larger node size increases squared bias while reducing variance. The substantial increase in bias suggests that a node size of 30 may lead to underfitting.
+
+**2. Benefits and Drawbacks of Large $\text{mtry}$**
+
+A larger $\text{mtry}$ allows more predictors to be considered at each split, increasing the chance of selecting important variables and reducing bias. However, it can also make trees more correlated, increasing the variance of the forest predictions and reducing the benefit of averaging.
+
+**3. Effect of Reducing Bootstrap Sample Size**
+
+If each tree sampled 100 instead of 200 observations, I would expect the preferred node size to shift toward smaller values. With fewer observations per tree, a large node size would restrict splitting even more and potentially increase bias. A smaller node size could help maintain flexibility. However, the exact pattern is not guaranteed because smaller bootstrap samples may also increase prediction variability.
+
+## Question 2: Tuning random forests for MNIST
+
+Use `mnist-first2000.csv.gz` from the combined ZIP. It contains 2,000 MNIST observations, with the digit label `Digit` and 784 pixel values.
+
+- From the first 1,000 observations, keep digits 1, 6, and 7 as the training data. From the remaining 1,000 observations, keep the same digits as the test data.
+- Fit PCA to the training pixels, centering but not scaling them. Use the first 20 principal components as predictors, and project the test observations using the same training means and loadings.
+
+Complete the following tasks using RLT classification forests with 1,000 trees. For each tree, draw a bootstrap sample of the same size as the training set.
+
+a. Fit a random forest with the default `mtry` and node-size settings. Report the out-of-bag (OOB) misclassification rate.
+
+### Solution
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.decomposition import PCA
+from rlt import RLT_cla
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    ConfusionMatrixDisplay
+)
+
+seed = 432
+np.random.seed(seed)
+
+# Load MNIST data
+mnist = pd.read_csv("data/mnist-first2000.csv.gz")
+
+# Split into training and test sets
+train_raw = mnist.iloc[:1000]
+test_raw = mnist.iloc[1000:2000]
+
+# Keep only digits 1, 6, and 7
+train = train_raw[train_raw["Digit"].isin([1, 6, 7])]
+test = test_raw[test_raw["Digit"].isin([1, 6, 7])]
+
+# Separate predictors and labels
+X_train = train.drop(columns="Digit").to_numpy()
+X_test = test.drop(columns="Digit").to_numpy()
+
+y_train = train["Digit"].to_numpy()
+y_test = test["Digit"].to_numpy()
+
+print("Training shape:", X_train.shape)
+print("Test shape:", X_test.shape)
+
+# Fit PCA on training data
+pca = PCA(n_components=20)
+
+X_train_pca = pca.fit_transform(X_train)
+
+# Transform test data using the same PCA
+X_test_pca = pca.transform(X_test)
+
+print("Training PCA shape:", X_train_pca.shape)
+print("Test PCA shape:", X_test_pca.shape)
+
+# Default Random Forest
+# Default RLT Classification Forest
+rf_default = RLT_cla(
+    n_estimators=1000,
+    resample_prob=1.0,
+    resample_replace=True,
+    reinforcement=False,
+    random_state=seed,
+    n_jobs=1
+)
+
+rf_default.fit(X_train_pca, y_train)
+
+# OOB misclassification rate
+oob_error_default = rf_default.oob_error_
+
+print(f"Default OOB Misclassification Rate: {oob_error_default:.4f}")
+print(f"Default mtry: {rf_default.mtry}")
+print(f"Default node size: {rf_default.min_samples_leaf}")
+```
+
+The default RLT random forest achieved an OOB misclassification rate of **4.28%** using 1,000 trees. This indicates that the model correctly classified approximately 95.72% of observations based on their OOB predictions.
+
+b. Construct a grid of `mtry` and node-size values to tune the model. Select the setting using OOB misclassification rate. Report the OOB error for each setting and the selected values. Calculate and present the selected forest's OOB permutation variable importance for the 20 principal components. Comment on your results.
+
+### Solution
+```{python}
+from itertools import product
+
+# Parameter grid
+mtry_values = [2, 5, 10, 15, 20]
+node_sizes = [1, 5, 10, 20]
+
+results = []
+models = {}
+
+for mtry, node_size in product(mtry_values, node_sizes):
+
+    rf = RLT_cla(
+        n_estimators=1000,
+        mtry=mtry,
+        min_samples_leaf=node_size,
+        resample_prob=1.0,
+        resample_replace=True,
+        reinforcement=False,
+        random_state=seed,
+        n_jobs=1
+)
+
+    rf.fit(X_train_pca, y_train)
+
+    oob_error = rf.oob_error_
+
+    results.append({
+        "mtry": mtry,
+        "node_size": node_size,
+        "OOB_Error": oob_error
+    })
+
+    models[(mtry, node_size)] = rf
+
+# Convert results to DataFrame
+results_df = pd.DataFrame(results)
+
+print(results_df.to_string(index=False))
+
+# Find best setting
+best_idx = results_df["OOB_Error"].idxmin()
+
+best_row = results_df.loc[best_idx]
+
+best_mtry = int(best_row["mtry"])
+best_node_size = int(best_row["node_size"])
+best_oob_error = best_row["OOB_Error"]
+
+# Retrieve selected model
+best_rf = models[(best_mtry, best_node_size)]
+
+print("Best mtry:", best_mtry)
+print("Best node size:", best_node_size)
+print(f"Best OOB Error: {best_oob_error:.4f}")
+
+# Create heatmap data
+heatmap_data = results_df.pivot(
+    index="node_size",
+    columns="mtry",
+    values="OOB_Error"
+)
+
+plt.figure(figsize=(8, 5))
+
+sns.heatmap(
+    heatmap_data,
+    annot=True,
+    fmt=".3f",
+    cmap="YlOrRd"
+)
+
+plt.title("OOB Error by mtry and Node Size")
+plt.xlabel("mtry")
+plt.ylabel("Node Size")
+plt.show()
+
+# Fit selected RLT forest with OOB permutation importance
+best_rf = RLT_cla(
+    n_estimators=1000,
+    mtry=best_mtry,
+    min_samples_leaf=best_node_size,
+    resample_prob=1.0,
+    resample_replace=True,
+    reinforcement=False,
+    importance="permute",
+    random_state=seed,
+    n_jobs=1
+)
+
+best_rf.fit(X_train_pca, y_train)
+
+# OOB permutation importance
+importance_df = pd.DataFrame({
+    "PC": [f"PC{i}" for i in range(1, 21)],
+    "Importance": best_rf.feature_importances_
+})
+
+importance_df = importance_df.sort_values(
+    "Importance",
+    ascending=False
+)
+
+print(importance_df.to_string(index=False))
+
+plt.figure(figsize=(9, 6))
+
+sns.barplot(
+    data=importance_df,
+    x="Importance",
+    y="PC",
+    color="steelblue"
+)
+
+plt.title("OOB Permutation Variable Importance")
+plt.xlabel("Increase in OOB Misclassification Rate")
+plt.ylabel("Principal Component")
+plt.tight_layout()
+plt.show()
+
+print(f"Random seed: {seed}")
+print(f"Selected mtry: {best_mtry}")
+print(f"Selected node size: {best_node_size}")
+print(f"Selected OOB error: {best_oob_error:.4f}")
+```
+
+A grid search was performed over different values of $\text{mtry}$ and node size using OOB misclassification rate for model selection.
+
+The lowest OOB error was **3.67%**, achieved by multiple parameter combinations. The selected model used $\text{mtry} = 2$ and node size $= 10$, which was the first combination achieving the minimum OOB error in the grid search.
+
+Overall, smaller values of $\text{mtry}$ generally produced lower OOB errors. However, node size had relatively little effect on performance for some $\text{mtry}$ values. This suggests that feature subsampling was more influential than node size in this example.
+
+The OOB permutation importance results showed that **PC2 and PC1** were the most important predictors, followed by PC3, PC6, and PC5. Permuting these components increased the OOB misclassification rate, indicating that they contain useful information for distinguishing digits 1, 6, and 7.
+
+c. Apply the selected model to the test data and report the misclassification rate and confusion matrix. Use the test labels only for this final assessment.
+
+### Solution
+```{python}
+# Predict test data
+y_pred = best_rf.predict(X_test_pca)
+
+# Test misclassification rate
+test_error = np.mean(y_pred != y_test)
+
+print(f"Test Misclassification Rate: {test_error:.4f}")
+
+# Confusion matrix
+cm = confusion_matrix(
+    y_test,
+    y_pred,
+    labels=[1, 6, 7]
+)
+
+print("Confusion Matrix:")
+print(cm)
+
+# Plot
+disp = ConfusionMatrixDisplay(
+    confusion_matrix=cm,
+    display_labels=[1, 6, 7]
+)
+
+disp.plot(cmap="Blues", values_format="d")
+plt.title("Test Confusion Matrix")
+plt.show()
+```
+
+The selected random forest was evaluated on the held-out test set, achieving a misclassification rate of **1.89%** ($6$ out of $317$ observations), corresponding to an accuracy of approximately **98.11%**.
+
+The confusion matrix shows that all digit 6 observations were correctly classified, while three digit 1 observations were misclassified as digit 7, and three digit 7 observations were misclassified as digit 6.
+
+The test error was lower than the OOB error of **3.67%**, suggesting good performance on this test set. The difference may be due to sampling variability.
+
+## Question 3: Planning a random-forest analysis skill
+
+In earlier homework, some students wrote long skill files with detailed instructions, while others wrote short skills emphasizing their specific requirements or references. These approaches may perform differently depending on the AI and the task. A capable AI may already know standard ways to perform an analysis, so some instructions may be redundant, add little value, or sometimes make the analysis worse. It may be more useful to specify your personal choices for the analysis. An AI with more limited knowledge may benefit from detailed instructions that remind it of the steps to perform.
+
+a. Write one paragraph describing how you would write a skill that directs an AI to perform a random-forest analysis and produce a report for a future dataset. Discuss how you would balance standard analysis instructions with your personal preferences, considering the AI's capabilities.
+
+### Solution
+
+I would write a concise skill that focuses on the main steps of random forest analysis and my personal preferences for the final report. Since a capable AI should already understand standard procedures such as data preprocessing, model fitting, and evaluation, I would avoid providing overly detailed instructions for these steps. Instead, I would emphasize reproducibility, appropriate hyperparameter tuning, clear visualizations, and interpretation of the results. I would also specify my preferred report format, including concise explanations and well-labeled figures and tables. For an AI with more limited capabilities, I would include more detailed instructions and examples to ensure the analysis is performed correctly.
+
+b. Provide **10 instructions** you would consider including in the skill, **ordered from the most basic instructions to the more personal preferences**. Your list may cover computation, tuning, tables, figures, interpretation, presentation, or other aspects of a random-forest report.
+
+### Solution
+
+1. Identify whether the task is regression or classification and select appropriate evaluation metrics.
+
+2. Inspect the dataset for missing values, variable types, and potential data quality issues before modeling.
+
+3. Split the data into training and test sets, ensuring that the test data is not used during model selection.
+
+4. Fit a random forest using appropriate default settings as a baseline model.
+
+5. Tune hyperparameters such as $\text{mtry}$ and node size using OOB error or cross-validation.
+
+6. Evaluate the selected model using suitable metrics, such as MSE for regression or misclassification rate and confusion matrix for classification.
+
+7. Calculate permutation variable importance to identify influential predictors and discuss its limitations.
+
+8. Set and report a random seed to ensure reproducibility, and clearly document the selected model parameters.
+
+9. Present the tuning results and variable importance using well-labeled tables and figures that are easy to interpret.
+
+10. Write a concise report that focuses on key findings, explains the results in plain language, and avoids unnecessary technical details.
+
+You only need to discuss how the skill should be written. You are not required to write a complete skill file or test it.
