@@ -1,0 +1,769 @@
+---
+title: "Homework 11"
+pagetitle: "Homework 11"
+body-classes: "lecture-page practice-page"
+format:
+  html:
+    embed-resources: true
+    html-math-method: mathml
+    page-layout: full
+    toc: true
+    toc-location: body
+    toc-title: "On this page"
+    toc-depth: 2
+    code-fold: true
+    code-summary: "Show Code"
+---
+
+Solutions will be available after Monday, November 9, 2026.
+
+## Question 1: Implementing K-means
+
+K-means is a relatively simple algorithm that we can write ourselves. For Questions 1 and 2, do not use an existing function that performs K-means directly.
+
+Generate 10 observations with two independent standard normal coordinates. Set a random seed and report it. Randomly assign the observations to $K=2$ clusters, making sure neither cluster is empty. Let $C(i)$ denote the cluster assigned to observation $x_i$, and let $m_k$ denote the mean of cluster $k$.
+
+a. Perform one iteration: calculate the cluster means, then assign each observation to its closest mean using Euclidean distance. Report the means and updated assignments, and plot the observations colored by their updated assignments.
+
+### Solution
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Set random seed
+np.random.seed(432)
+
+# Generate 10 observations with two independent N(0,1) coordinates
+X = np.random.randn(10, 2)
+
+# Randomly assign observations to K = 2 clusters
+# Ensure neither cluster is empty
+initial_clusters = np.random.choice([0, 1], size=10)
+
+while len(np.unique(initial_clusters)) < 2:
+    initial_clusters = np.random.choice([0, 1], size=10)
+
+# Step 1: Calculate initial cluster means
+means = np.array([
+    X[initial_clusters == k].mean(axis=0)
+    for k in range(2)
+])
+
+# Step 2: Calculate Euclidean distances to each mean
+distances = np.sqrt(
+    np.sum((X[:, np.newaxis, :] - means[np.newaxis, :, :])**2, axis=2)
+)
+
+# Step 3: Assign each observation to the closest mean
+updated_clusters = np.argmin(distances, axis=1)
+
+# Display cluster means
+means_df = pd.DataFrame(
+    means,
+    columns=["Mean X1", "Mean X2"],
+    index=["Cluster 1", "Cluster 2"]
+)
+
+print("Random seed: 432")
+print("\nInitial Cluster Means:")
+print(means_df)
+
+# Display updated assignments
+results = pd.DataFrame({
+    "Observation": np.arange(1, 11),
+    "X1": X[:, 0],
+    "X2": X[:, 1],
+    "Initial Cluster": initial_clusters + 1,
+    "Updated Cluster": updated_clusters + 1
+})
+
+print("\nCluster Assignments:")
+print(results.to_string(index=False))
+
+# Plot observations colored by updated assignments
+plt.figure(figsize=(7, 5))
+
+for k in range(2):
+    plt.scatter(
+        X[updated_clusters == k, 0],
+        X[updated_clusters == k, 1],
+        label=f"Cluster {k+1}",
+        s=80
+    )
+
+# Plot the cluster means used for reassignment
+plt.scatter(
+    means[:, 0],
+    means[:, 1],
+    c="black",
+    marker="X",
+    s=200,
+    label="Initial Cluster Means"
+)
+
+plt.xlabel("X1")
+plt.ylabel("X2")
+plt.title("K-means: One Iteration (K = 2)")
+plt.legend()
+plt.grid(alpha=0.3)
+plt.show()
+```
+
+Using random seed 432, we generated 10 observations with two independent standard normal coordinates and randomly assigned them to two nonempty clusters.
+
+The initial cluster means were
+
+$$
+m_1 = (0.0275, -0.1386), \qquad
+m_2 = (0.7637, -0.2600).
+$$
+
+After reassigning each observation to its nearest cluster mean using Euclidean distance, Observation 3 moved from Cluster 1 to Cluster 2, and Observation 9 moved from Cluster 2 to Cluster 1. The remaining observations retained their initial assignments.
+
+The plot shows the updated cluster assignments, with black crosses representing the initial cluster means used for reassignment.
+
+b. Write a function that repeats these two steps until the assignments stop changing or a specified maximum number of iterations is reached. Your function should work for a data matrix with any number of variables and a chosen number of clusters $K$. Start from a nonempty assignment to each cluster; if a cluster becomes empty during iteration, keep its previous mean. Recalculate the cluster means from the final assignments before returning them. Return the final assignments, cluster means, and within-cluster sum of squares,
+
+   $$
+   \sum_{k=1}^K\sum_{i:\,C(i)=k}\lVert x_i-m_k\rVert^2.
+   $$
+
+### Solution
+
+```{python}
+def my_kmeans(X, K, initial_clusters, max_iter=100):
+    X = np.asarray(X, dtype=float)
+    n, p = X.shape
+
+    # Check inputs
+    if K < 1 or K > n:
+        raise ValueError("K must be between 1 and n.")
+
+    clusters = np.asarray(initial_clusters, dtype=int).copy()
+
+    if len(clusters) != n:
+        raise ValueError("Initial assignments must have length n.")
+
+    if not np.array_equal(np.unique(clusters), np.arange(K)):
+        raise ValueError("Each cluster must initially be nonempty.")
+
+    if max_iter < 1:
+        raise ValueError("max_iter must be at least 1.")
+
+    # Calculate initial cluster means
+    means = np.array([
+        X[clusters == k].mean(axis=0)
+        for k in range(K)
+    ])
+
+    # Repeat until convergence or max_iter
+    for iteration in range(max_iter):
+
+        # Step 1: Calculate cluster means
+        for k in range(K):
+            if np.any(clusters == k):
+                means[k] = X[clusters == k].mean(axis=0)
+            # If empty, keep the previous mean
+
+        # Step 2: Calculate squared Euclidean distances
+        distances = np.sum(
+            (X[:, None, :] - means[None, :, :])**2,
+            axis=2
+        )
+
+        # Assign observations to the closest cluster
+        new_clusters = np.argmin(distances, axis=1)
+
+        # Stop if assignments do not change
+        if np.array_equal(new_clusters, clusters):
+            break
+
+        clusters = new_clusters
+
+    # Recalculate means from FINAL assignments
+    for k in range(K):
+        if np.any(clusters == k):
+            means[k] = X[clusters == k].mean(axis=0)
+
+    # Calculate within-cluster sum of squares
+    wcss = np.sum(
+        (X - means[clusters])**2
+    )
+
+    return {
+        "clusters": clusters,
+        "means": means,
+        "wcss": wcss,
+        "iterations": iteration + 1
+    }
+
+
+# Apply the function to the same data from Question 1(a)
+result = my_kmeans(
+    X,
+    K=2,
+    initial_clusters=initial_clusters,
+    max_iter=100
+)
+
+print("Final Cluster Assignments:")
+print(result["clusters"] + 1)
+
+print("\nFinal Cluster Means:")
+print(result["means"])
+
+print("\nWithin-Cluster Sum of Squares (WCSS):")
+print(result["wcss"])
+
+print("\nNumber of Iterations:")
+print(result["iterations"])
+```
+
+Using the same data and initial assignments from Question 1(a), we implemented K-means with $K=2$ and a maximum of 100 iterations.
+
+The algorithm converged after 3 iterations, producing the following final cluster means:
+
+$$
+m_1 = (-0.0085, 0.0975), \qquad
+m_2 = (1.2759, -1.2653).
+$$
+
+The final cluster assignments were
+
+$$
+C = (1,1,2,1,1,1,2,1,1,1).
+$$
+
+The final within-cluster sum of squares was
+
+$$
+\mathrm{WCSS} = 2.7605.
+$$
+
+This indicates the total squared distance between observations and their assigned cluster means. The algorithm stopped because the cluster assignments no longer changed.
+
+c. Apply your function to the same 10 observations from two different random initial assignments. Report the final plots, cluster means, and within-cluster sums of squares. Do the two runs produce the same grouping and objective value? Explain your findings.
+
+### Solution
+
+```{python}
+# Use the same X from Question 1(a)
+K = 2
+rng = np.random.default_rng(433)
+
+# Generate nonempty random assignments
+def random_initial_assignments(n, K, rng):
+    while True:
+        clusters = rng.integers(0, K, size=n)
+        if len(np.unique(clusters)) == K:
+            return clusters
+
+# Generate two different initial assignments
+init1 = random_initial_assignments(len(X), K, rng)
+
+init2 = random_initial_assignments(len(X), K, rng)
+while np.array_equal(init1, init2):
+    init2 = random_initial_assignments(len(X), K, rng)
+
+# Run K-means using the function from Question 1(b)
+result1 = my_kmeans(X, K=2, initial_clusters=init1)
+result2 = my_kmeans(X, K=2, initial_clusters=init2)
+
+# Display results
+for i, (init, result) in enumerate(
+    [(init1, result1), (init2, result2)], start=1
+):
+    print(f"\nRun {i}")
+    print("Initial Assignments:", init + 1)
+    print("Final Assignments:", result["clusters"] + 1)
+    print("Final Cluster Means:")
+    print(result["means"])
+    print("WCSS:", result["wcss"])
+    print("Iterations:", result["iterations"])
+
+# Compare results
+# Account for possible swapping of cluster labels
+same_grouping = (
+    np.array_equal(result1["clusters"], result2["clusters"])
+    or np.array_equal(result1["clusters"], 1 - result2["clusters"])
+)
+
+same_wcss = np.isclose(
+    result1["wcss"],
+    result2["wcss"]
+)
+
+print("\nComparison:")
+print("Same grouping (ignoring cluster labels):", same_grouping)
+print("Same WCSS:", same_wcss)
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+for ax, result, title in zip(
+    axes,
+    [result1, result2],
+    ["Run 1", "Run 2"]
+):
+
+    clusters = result["clusters"]
+    means = result["means"]
+
+    # Plot observations by final cluster assignments
+    for k in range(K):
+        ax.scatter(
+            X[clusters == k, 0],
+            X[clusters == k, 1],
+            s=80,
+            label=f"Cluster {k+1}"
+        )
+
+    # Plot final cluster means
+    ax.scatter(
+        means[:, 0],
+        means[:, 1],
+        c="black",
+        marker="X",
+        s=200,
+        label="Final Cluster Means"
+    )
+
+    ax.set_title(
+        f"{title}: WCSS = {result['wcss']:.4f}"
+    )
+    ax.set_xlabel("X1")
+    ax.set_ylabel("X2")
+    ax.legend()
+    ax.grid(alpha=0.3)
+
+plt.suptitle("K-means with Different Random Initial Assignments")
+plt.tight_layout()
+plt.show()
+
+comparison = pd.DataFrame({
+    "Run": ["Run 1", "Run 2"],
+    "Cluster 1 Mean": [
+        np.round(result1["means"][0], 4),
+        np.round(result2["means"][0], 4)
+    ],
+    "Cluster 2 Mean": [
+        np.round(result1["means"][1], 4),
+        np.round(result2["means"][1], 4)
+    ],
+    "WCSS": [
+        result1["wcss"],
+        result2["wcss"]
+    ],
+    "Iterations": [
+        result1["iterations"],
+        result2["iterations"]
+    ]
+})
+
+print(comparison.to_string(index=False))
+```
+
+Both runs converged to the same clustering solution, with identical cluster means and $\mathrm{WCSS}=3.7223$. Run 1 required 3 iterations, while Run 2 required 2.
+
+However, Question 1(b) achieved a lower WCSS of $2.7605$, demonstrating that different initializations can lead to different local solutions.
+
+## Question 2: Image color compression
+
+Pick your favorite color image and use your K-means function from Question 1 to cluster its pixels. For computational efficiency, resize the image to no more than $200\times200$ pixels and use its three RGB color channels.
+
+a. Plot the original image and report its dimensions. Transform it into a data matrix with one observation per pixel and three variables: red, green, and blue. Report the dimensions of this matrix.
+
+### Solution
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+
+# Load a color image
+image_path = "uiuc_autumn_campus.jpg"
+img = Image.open(image_path).convert("RGB")
+img.thumbnail((200, 200))
+
+# Resize image to no more than 200 x 200 pixels
+img.thumbnail((200, 200))
+
+# Convert to NumPy array
+img_array = np.array(img)
+
+# Report image dimensions
+height, width, channels = img_array.shape
+
+print("Image dimensions:")
+print(f"Height: {height}")
+print(f"Width: {width}")
+print(f"Channels: {channels}")
+
+# Plot the resized original image
+plt.figure(figsize=(6, 6))
+plt.imshow(img_array)
+plt.title("Original Image (Resized)")
+plt.axis("off")
+plt.show()
+
+# Transform image into a data matrix
+# Each row = one pixel; columns = R, G, B
+X_pixels = img_array.reshape(-1, 3)
+
+# Report matrix dimensions
+print("\nRGB Data Matrix Dimensions:")
+print(X_pixels.shape)
+```
+
+We selected a photograph taken on the UIUC campus and resized it to $200 \times 150$ pixels (height $\times$ width), with three RGB color channels.
+
+The image was then reshaped into a data matrix with one observation per pixel and three variables representing red, green, and blue intensities.
+
+The resulting matrix has dimensions
+
+$$
+(200 \times 150) \times 3 = 30{,}000 \times 3.
+$$
+
+Thus, the data matrix contains 30,000 observations and 3 variables, ready for K-means clustering.
+
+b. For $K=2,3,5,10$, apply your function to the pixel data. Report the cluster means and within-cluster sum of squares for each $K$. Reconstruct and plot each compressed image by replacing every pixel with its assigned cluster mean. Use the same RGB scale for all fits.
+
+### Solution
+
+```{python}
+# Question 2(b): Image Color Compression Using K-means
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# --------------------------------------------------
+# 1. Set up pixel data and K values
+# --------------------------------------------------
+
+K_values = [2, 3, 5, 10]
+
+# Convert RGB values to float for K-means calculations
+X_rgb = X_pixels.astype(float)
+
+# Set random seed for reproducibility
+rng = np.random.default_rng(432)
+
+# Store results
+compression_results = {}
+
+
+# --------------------------------------------------
+# 2. Apply K-means for each K
+# --------------------------------------------------
+
+for K in K_values:
+
+    # Random initial assignments (all clusters nonempty)
+    initial_clusters = random_initial_assignments(
+        len(X_rgb), K, rng
+    )
+
+    # Apply the K-means function from Question 1(b)
+    result = my_kmeans(
+        X_rgb,
+        K=K,
+        initial_clusters=initial_clusters,
+        max_iter=100
+    )
+
+    # Replace each pixel with its assigned cluster mean
+    compressed_pixels = result["means"][result["clusters"]]
+
+    # Reconstruct the compressed image
+    compressed_image = compressed_pixels.reshape(
+        height, width, 3
+    )
+
+    # Keep RGB values on the same [0, 255] scale
+    compressed_image = np.clip(
+        compressed_image, 0, 255
+    ).astype(np.uint8)
+
+    # Store results
+    compression_results[K] = {
+        "result": result,
+        "image": compressed_image
+    }
+
+
+# --------------------------------------------------
+# 3. Report cluster means for each K
+# --------------------------------------------------
+
+print("CLUSTER MEANS (RGB VALUES)")
+print("=" * 45)
+
+for K in K_values:
+
+    means = compression_results[K]["result"]["means"]
+
+    means_df = pd.DataFrame(
+        means,
+        columns=["Red", "Green", "Blue"],
+        index=[f"Cluster {i+1}" for i in range(K)]
+    )
+
+    print(f"\nK = {K}")
+    print(means_df.round(2).to_string())
+
+
+# --------------------------------------------------
+# 4. Report WCSS and iterations
+# --------------------------------------------------
+
+wcss_table = pd.DataFrame({
+    "K": K_values,
+    "WCSS": [
+        compression_results[K]["result"]["wcss"]
+        for K in K_values
+    ],
+    "Iterations": [
+        compression_results[K]["result"]["iterations"]
+        for K in K_values
+    ]
+})
+
+print("\nWCSS COMPARISON")
+print("=" * 45)
+
+print(
+    wcss_table.to_string(
+        index=False,
+        formatters={
+            "WCSS": "{:,.2f}".format
+        }
+    )
+)
+
+
+# --------------------------------------------------
+# 5. Plot original and compressed images
+# --------------------------------------------------
+
+fig, axes = plt.subplots(1, 5, figsize=(16, 5))
+
+# Original image
+axes[0].imshow(img_array)
+axes[0].set_title("Original Image")
+axes[0].axis("off")
+
+# Compressed images
+for i, K in enumerate(K_values, start=1):
+
+    compressed_image = compression_results[K]["image"]
+    wcss = compression_results[K]["result"]["wcss"]
+
+    axes[i].imshow(compressed_image)
+
+    axes[i].set_title(
+        f"K = {K}\nWCSS = {wcss:,.0f}"
+    )
+
+    axes[i].axis("off")
+
+plt.suptitle(
+    "K-means Image Color Compression",
+    fontsize=14
+)
+
+plt.tight_layout()
+plt.show()
+```
+
+As $K$ increases from 2 to 10, WCSS decreases and the reconstructed images preserve more color details.
+
+With $K=2$, substantial color information is lost, whereas $K=10$ provides the closest visual approximation to the original image.
+
+This illustrates the trade-off between color compression and reconstruction accuracy.
+
+c. Which value of $K$ would you choose for this image? Briefly justify your choice using the reconstructed images and the within-cluster sums of squares.
+
+### Solution
+I would choose $K=10$ because it provides the best balance between image quality and color compression among the four values considered.
+
+The reconstructed image with $K=10$ preserves more color details, particularly in the sky, grass, and trees, making it the closest approximation to the original image.
+
+It also achieves the lowest WCSS of $13{,}450{,}595$, compared with $28{,}401{,}024$ for $K=5$.
+
+Although $K=10$ uses more representative colors than the other options, it still substantially reduces the number of distinct colors while maintaining better visual quality.
+
+## Question 3: Hierarchical clustering of cars
+
+The file `data/mtcars.csv` contains 11 numerical variables for 32 cars, including fuel economy, horsepower, and weight. The `car` column gives the model names; use it to label observations, not as a clustering variable. You may use existing hierarchical clustering functions for this question.
+
+a. Standardize each numerical variable to have mean 0 and standard deviation 1. Using Euclidean distance, perform hierarchical clustering with single, complete, and average linkage. Plot the three dendrograms with the car names and compare the results.
+
+### Solution
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from scipy.cluster.hierarchy import linkage, dendrogram
+from scipy.spatial.distance import pdist
+
+# Load the dataset
+mtcars = pd.read_csv("data/mtcars.csv")
+
+# Use car names as labels, not clustering variables
+car_names = mtcars["car"]
+
+# Select numerical variables
+X = mtcars.drop(columns=["car"]).select_dtypes(include="number")
+
+# Standardize each variable (mean = 0, SD = 1)
+X_scaled = (X - X.mean()) / X.std(ddof=1)
+
+# Check standardized data
+print("Data dimensions:", X_scaled.shape)
+
+print(
+    "Standardization check:",
+    np.allclose(X_scaled.mean(), 0) and
+    np.allclose(X_scaled.std(ddof=1), 1)
+)
+
+# Calculate Euclidean distance matrix
+distances = pdist(X_scaled, metric="euclidean")
+
+# Perform hierarchical clustering
+hc_single = linkage(distances, method="single")
+hc_complete = linkage(distances, method="complete")
+hc_average = linkage(distances, method="average")
+
+# Plot three dendrograms
+
+fig, axes = plt.subplots(3, 1, figsize=(12, 18))
+
+methods = [
+    ("Single Linkage", hc_single),
+    ("Complete Linkage", hc_complete),
+    ("Average Linkage", hc_average)
+]
+
+for ax, (title, Z) in zip(axes, methods):
+
+    dendrogram(
+        Z,
+        labels=car_names.to_numpy(),
+        orientation="right",
+        leaf_font_size=9,
+        ax=ax
+    )
+
+    ax.set_title(title, fontsize=13)
+    ax.set_xlabel("Euclidean Distance")
+    ax.set_ylabel("Car Models")
+
+plt.suptitle(
+    "Hierarchical Clustering of mtcars",
+    fontsize=16
+)
+
+plt.tight_layout()
+plt.show()
+```
+
+Single linkage exhibits a chaining effect, resulting in less clearly separated clusters. Complete linkage produces more compact groups, with the final merge occurring at approximately 8.5.
+
+Average linkage provides an intermediate structure. Similar models, such as Mazda RX4 and Mazda RX4 Wag, are grouped closely together across methods.
+
+b. Choose one linkage method and a number of clusters that you consider reasonable. Report the cluster memberships and a table of cluster means on the original variable scales. Describe the main characteristics of the groups and explain your choice using the dendrogram and table. Briefly explain why standardizing the variables matters for this analysis.
+
+### Solution
+```{python}
+from scipy.cluster.hierarchy import fcluster
+
+# Choose linkage method and number of clusters
+K = 3
+
+# Cut the complete-linkage dendrogram into 3 clusters
+cluster_labels = fcluster(
+    hc_complete,
+    t=K,
+    criterion="maxclust"
+)
+
+# Add cluster labels to original data
+mtcars_clustered = mtcars.copy()
+mtcars_clustered["Cluster"] = cluster_labels
+
+# Display cluster sizes
+print("Cluster Sizes:")
+print(mtcars_clustered["Cluster"].value_counts().sort_index())
+
+# Report cluster memberships
+
+print("\nCluster Memberships:")
+
+for k in range(1, K + 1):
+
+    members = mtcars_clustered.loc[
+        mtcars_clustered["Cluster"] == k,
+        "car"
+    ].tolist()
+
+    print(f"\nCluster {k} ({len(members)} cars):")
+
+    for car in members:
+        print(f"  {car}")
+
+# Calculate cluster means using ORIGINAL variable scales
+
+cluster_means = (
+    mtcars_clustered
+    .groupby("Cluster")[X.columns]
+    .mean()
+)
+
+print("\nCluster Means (Original Variable Scales):")
+print(cluster_means.round(2).to_string())
+
+# Plot complete-linkage dendrogram with K = 3
+
+plt.figure(figsize=(12, 10))
+
+dendrogram(
+    hc_complete,
+    labels=car_names.to_numpy(),
+    orientation="right",
+    leaf_font_size=9
+)
+
+# Determine the cut height between the last two merges
+# below the final K = 3 clusters
+cut_height = (
+    hc_complete[-K, 2] + hc_complete[-K + 1, 2]
+) / 2
+
+plt.axvline(
+    x=cut_height,
+    color="red",
+    linestyle="--",
+    label=f"K = {K}"
+)
+
+plt.title("Complete Linkage Hierarchical Clustering (K = 3)")
+plt.xlabel("Euclidean Distance")
+plt.ylabel("Car Models")
+plt.legend()
+plt.tight_layout()
+plt.show()
+```
+
+We selected complete linkage with $K=3$ because the dendrogram shows three reasonably separated groups.
+
+Cluster 1 (15 cars) consists of relatively fuel-efficient, lightweight cars, with the highest average mpg (24.65) and lowest horsepower (91.33).
+
+Cluster 2 (12 cars) contains heavier, large-engine cars, with the lowest mpg (15.05) and highest weight (4.10).
+
+Cluster 3 (5 cars) is more performance-oriented, with the highest horsepower (198.80) and shortest quarter-mile time (15.62).
+
+These differences support the choice of three clusters. Standardization ensures that variables with larger numerical scales do not dominate the Euclidean distances.
