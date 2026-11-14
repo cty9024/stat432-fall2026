@@ -1,0 +1,54 @@
+{
+  "selected": {
+    "algorithm": "spectral",
+    "k": 2,
+    "affinity": "rbf",
+    "gamma": 0.0006959898298609435,
+    "space": "PCA95",
+    "id": 156,
+    "valid": true,
+    "min_size": 6,
+    "silhouette": 0.11444357874425744,
+    "CH": 4.135851736180538,
+    "DB": 2.0418391019070903,
+    "warnings": "",
+    "seed_ARI": 1.0,
+    "subsample_ARI": 0.4414530784881959,
+    "subsample_ARI_sd": 0.4280837499144002
+  },
+  "audit": {
+    "n": 38,
+    "features": 3051,
+    "retained": 3051,
+    "missing": 0,
+    "constant": 0,
+    "sd_range": [
+      0.19546568110169382,
+      1.838337532116019
+    ],
+    "max_abs_z": 5.956918948231001,
+    "sample_norm_range": [
+      45.85032503582356,
+      84.8225242554102
+    ],
+    "PCA_dimensions": {
+      "0.8": 21,
+      "0.9": 28,
+      "0.95": 32
+    },
+    "ARI": -0.09251302678489808,
+    "contingency": {
+      "ALL": {
+        "1": 21,
+        "2": 6
+      },
+      "AML": {
+        "1": 11,
+        "2": 0
+      }
+    },
+    "data_sha256": "260f830a20059af6debb748e936de39009c017bbee2bcbc87db7520723a78669",
+    "skill_sha256": "5cdcc3e0fc7090e861746b0977677df22c7d2ab30a035565b135a914f91fda97"
+  }
+}
+Report saved; original dataset and skill hashes verified.

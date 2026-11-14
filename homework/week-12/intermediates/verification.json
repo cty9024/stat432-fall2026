@@ -1,0 +1,16 @@
+{
+  "numerical_checks": "passed",
+  "skill_appendix": "byte-identical",
+  "inputs": "unchanged SHA-256",
+  "embedded_assets": true,
+  "versions": {
+    "python": "3.11.2",
+    "numpy": "2.4.6",
+    "pandas": "3.0.5",
+    "sklearn": "1.9.1",
+    "matplotlib": "3.11.1"
+  },
+  "analysis_printed_pages": 1,
+  "appendix_printed_pages": 2,
+  "visual_review": "readable, no clipping; legend excludes empty groups; interpretation matches projection"
+}

@@ -1,0 +1,30 @@
+---
+title: "Homework 12"
+pagetitle: "Homework 12"
+body-classes: "lecture-page practice-page"
+format:
+  html:
+    embed-resources: true
+    html-math-method: mathml
+    page-layout: full
+    toc: true
+    toc-location: body
+    toc-title: "On this page"
+    toc-depth: 2
+---
+
+## Question 1: Design and use an unsupervised-learning skill
+
+Create a reusable skill that directs an AI agent to explore clustering methods, select one, and explain its results in a concise report. Use `data/golub.csv` from the combined ZIP to cluster the 38 biological samples using their 3,051 gene measurements. Each observation is one sample. Use `gene_1` through `gene_3051` as the gene-expression variables; `sample_id` identifies the sample, and `leukemia_type` gives its known class label.
+
+a. **Define the skill.** Write a single `SKILL.md` file no larger than **5 KB (5,000 bytes)**, including YAML `name` and `description` frontmatter. Keep the skill independent of any particular dataset, variable names, or observed results. Provide the data details separately when invoking it, and configure it to load only when explicitly invoked.
+
+   The skill must try **at least three different clustering algorithms**, such as K-means, hierarchical clustering, and spectral clustering. It should guide preprocessing, tuning, the choice of the number of clusters, and the criteria used to compare methods and select a final one. You may include dimension reduction, such as PCA or UMAP, but an embedding alone does not count as a clustering algorithm. Decide how the skill should present the selected clustering visually and interpret the main findings and limitations.
+
+   **The skill must explicitly instruct the agent to limit its generated analysis report to one printed page, including all text, figures, and tables, and to present clustering results from only one selected method.** The report may briefly mention the other methods considered to justify the selection, but must not present their clustering results.
+
+b. **Apply the skill.** Explicitly invoke it to analyze the Golub data and produce a clearly readable report of **no more than one printed page**. Use gene expression for fitting and method selection. If you use the known leukemia-type labels, use them only to interpret the final clustering.
+
+   Briefly name the algorithms considered, explain the selection criteria, and justify the chosen method. **Present clustering results only for the selected algorithm**, including a meaningful visual presentation and an interpretation of the groups. Choose the figures or tables and the key evidence carefully so that the report makes effective use of the limited space.
+
+c. **Review and submit.** Check the analysis and its interpretation. Submit the report as a PDF named `homework-12.pdf` or a self-contained HTML file named `homework-12.html`, and the complete skill as `SKILL.md`, in `homework/week-12/`. Append the complete skill definition after the one-page analysis report; this appendix is outside the one-page limit.

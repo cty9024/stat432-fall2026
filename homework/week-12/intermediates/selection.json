@@ -1,0 +1,17 @@
+{
+  "algorithm": "spectral",
+  "k": 2,
+  "affinity": "rbf",
+  "gamma": 0.0006959898298609435,
+  "space": "PCA95",
+  "id": 156,
+  "valid": true,
+  "min_size": 6,
+  "silhouette": 0.11444357874425744,
+  "CH": 4.135851736180538,
+  "DB": 2.0418391019070903,
+  "warnings": "",
+  "seed_ARI": 1.0,
+  "subsample_ARI": 0.4414530784881959,
+  "subsample_ARI_sd": 0.4280837499144002
+}
